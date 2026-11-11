@@ -1,4 +1,4 @@
-# EduSphere LMS — Module 1: Authentication
+# EduSphere LMS — Module 2: Responsive Dashboard
 
 [![React](https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -6,69 +6,47 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Vitest](https://img.shields.io/badge/Vitest-2.1-729B1B?logo=vitest&logoColor=white)](https://vitest.dev/)
 
-Welcome to **Module 1: Authentication** of the **EduSphere** Online Learning Management System. This module implements a robust, secure, and user-friendly authentication pipeline with client-side session persistence and role-based access control (RBAC).
+Welcome to **Module 2: Responsive Dashboard** of the **EduSphere** Online Learning Management System. This module delivers an executive operations dashboard with real-time statistics, upcoming workshop schedules, live platform activity logs, and quick action shortcuts.
 
 ---
 
-## 📌 Module 1 Features
+## 📌 Module 2 Features
 
-- **User Login (`/auth/login`)**:
-  - Email & password authentication with strict pattern validation.
-  - "Remember Me" session preference checkbox.
-  - **1-Click Instant Demo Login**: Quick-switch buttons for **Admin**, **Instructor**, and **Student** accounts for instant evaluation.
-- **User Registration (`/auth/register`)**:
-  - Account creation with name, email, role selection (Student, Instructor, Admin), password, and confirm password matching.
-- **Forgot Password UI (`/auth/forgot-password`)**:
-  - Password recovery workflow with mock email dispatch and interactive confirmation screen.
-- **Form Validation & Schema Enforcement**:
-  - Built with **React Hook Form** and **Zod** (`src/utils/validators.ts`).
-  - Strict email regex, minimum password lengths, and password match assertions.
-- **Password Visibility Toggle**:
-  - Interactive show/hide eye toggle for password input fields.
-- **Protected Routes & Role Guards (`src/components/layout/ProtectedRoute.tsx`)**:
-  - Restricts unauthorized users from internal dashboard routes.
-  - Enforces route-level permissions based on active user role.
-- **Session Management & Local Storage**:
-  - Centralized state in `AuthContext` with automatic synchronization to versioned local storage (`edusphere_v1_session`).
-- **Logout Flow**:
-  - Clears active tokens/sessions and securely redirects to `/auth/login`.
+- **Live Dynamic KPI Cards (`src/pages/dashboard/Dashboard.tsx`)**:
+  - **Total Courses**: Active curriculum catalog count across multiple academic domains.
+  - **Total Students**: Registered student learners in the institution.
+  - **Total Instructors**: Active faculty and subject matter experts.
+  - **Enrolled Courses**: Ongoing student learning tracks.
+  - **Completed Courses**: Verified milestone completions and graduates.
+- **Goal Targets & Metric Deltas**:
+  - Goal completion progress bars (`Target: 100 Learners`, `% of Goal`).
+  - Velocity indicators (`+14.2%`, `Exceeding Benchmark`).
+- **Upcoming Classes & Workshops**:
+  - Live session schedule with timestamps, assigned faculty, session durations, and instant "Join" actions.
+- **Recent Activities Stream**:
+  - Real-time audit log of student registrations, quiz completions, assignment submissions, and catalog updates.
+- **Quick Action Cards**:
+  - Direct navigation shortcuts to "Add Course", "Enroll Student", "Student Directory", and "View Analytics".
+- **Top Rated Curriculum Showcase**:
+  - Leaderboard preview of top-evaluated courses with rating stars and price badges.
 
 ---
 
-## 🔑 Pre-Configured Demo Accounts
+## 🔑 User Roles on Dashboard
 
-| Role | Email | Password | Scope |
-| :--- | :--- | :--- | :--- |
-| **Administrator** | `admin@edusphere.com` | `adminPassword123` | Full administrative access |
-| **Instructor** | `instructor@edusphere.com` | `demoSecurePass123` | Faculty course management |
-| **Student** | `student@edusphere.com` | `demoSecurePass123` | Student learning and course enrollment |
+The dashboard dynamically adjusts its greeting and summary based on the active role (**Admin**, **Instructor**, **Student**). Use the 1-click **Role Switcher** in the top navigation bar to test role-specific dashboard views on the fly.
 
 ---
 
-## 🧪 Automated Testing
-
-Unit tests for Module 1 are located in [`src/test/auth.test.tsx`](./src/test/auth.test.tsx):
-- Zod schema validation checks (valid/invalid emails, password lengths).
-- Password mismatch detection on registration.
-- Instant role-switching functionality.
-- Logout and session cleanup.
+## 🚀 Running the Project
 
 ```bash
-# Run unit tests
-npm test
-```
-
----
-
-## 🚀 Getting Started
-
-```bash
-# 1. Install dependencies
+# Install dependencies
 npm install
 
-# 2. Run local development server
+# Run local development server
 npm run dev
 
-# 3. Build for production
-npm run build
+# Run automated tests
+npm test
 ```
