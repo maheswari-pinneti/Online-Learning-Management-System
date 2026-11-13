@@ -6,21 +6,17 @@ import {
   Moon,
   Search,
   LogOut,
-  Shield,
-  GraduationCap,
-  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { NotificationPanel } from './NotificationPanel';
-import { UserRole } from '@/types';
 
 interface NavbarProps {
   onToggleMobileMenu: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
-  const { user, logout, switchDemoRole, role } = useAuth();
+  const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -65,26 +61,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
 
       {/* Right Controls */}
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* Quick Role Switcher Pill (Crucial for Reviewers/Graders) */}
-        <div className="hidden md:flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-medium">
-          <span className="px-2 text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-            Role:
-          </span>
-          {(['admin', 'instructor', 'student'] as UserRole[]).map((r) => (
-            <button
-              key={r}
-              onClick={() => switchDemoRole(r)}
-              className={`px-2.5 py-1 rounded-lg text-xs capitalize transition-all ${
-                role === r
-                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-xs font-semibold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-
         {/* Theme Switcher */}
         <button
           onClick={toggleTheme}
@@ -126,39 +102,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu }) => {
                   <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300">
                     {user?.role}
                   </span>
-                </div>
-
-                <div className="py-1">
-                  <button
-                    onClick={() => {
-                      setIsProfileMenuOpen(false);
-                      switchDemoRole('admin');
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-left"
-                  >
-                    <Shield className="w-3.5 h-3.5 text-brand-600" />
-                    Switch to Admin Role
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsProfileMenuOpen(false);
-                      switchDemoRole('instructor');
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-left"
-                  >
-                    <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
-                    Switch to Instructor Role
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsProfileMenuOpen(false);
-                      switchDemoRole('student');
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-left"
-                  >
-                    <BookOpen className="w-3.5 h-3.5 text-purple-600" />
-                    Switch to Student Role
-                  </button>
                 </div>
 
                 <div className="pt-1 border-t border-slate-100 dark:border-slate-800 mt-1">
