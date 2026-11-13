@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   GraduationCap,
   Users,
@@ -90,6 +90,7 @@ export const AdminDashboard: React.FC = () => {
   const { students } = useStudents();
   const { instructors } = useInstructors();
   const { enrollments } = useEnrollment();
+  const navigate = useNavigate();
 
   // Selection state for star students table
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(['s-2']);
@@ -857,7 +858,10 @@ export const AdminDashboard: React.FC = () => {
                 </h3>
 
                 <button
-                  onClick={() => toast.success('Enrolled in "Build your career with API"!')}
+                  onClick={() => {
+                    navigate('/courses/course-java-1');
+                    toast.info('Viewing "Unlock Java Backend Power & REST APIs" masterclass.');
+                  }}
                   className="mt-4 px-4 py-1.5 rounded-full bg-slate-950 hover:bg-black text-white text-xs font-semibold shadow-xs transition-colors"
                 >
                   Enroll Now
