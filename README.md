@@ -1,4 +1,4 @@
-# EduSphere LMS — Module 8: Assignments & Quizzes
+# EduSphere LMS — Module 9: Reports & Analytics
 
 [![React](https://img.shields.io/badge/React-18.3.1-61DAFB?logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -6,38 +6,33 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Vitest](https://img.shields.io/badge/Vitest-2.1-729B1B?logo=vitest&logoColor=white)](https://vitest.dev/)
 
-Welcome to **Module 8: Assignments & Quizzes** of the **EduSphere** Online Learning Management System. This module equips students, instructors, and administrators with comprehensive evaluation pipelines, submission management, deadline tracking, and timed competency quizzes with instant auto-grading.
+Welcome to **Module 9: Reports & Analytics** of the **EduSphere** Online Learning Management System. This module delivers executive business intelligence, real-time curriculum performance metrics, Recharts data visualizers, and one-click institutional CSV data export.
 
 ---
 
-## 📌 Module 8 Features
+## 📌 Module 9 Features
 
-- **Course Assessment Catalog (`src/pages/assignments/AssignmentsQuizzes.tsx`)**:
-  - Tabbed interface switching between **Assignments** and **Quizzes**.
-  - Real-time badges for submission states: `Pending`, `Submitted`, and `Graded`.
-  - Course tags, assignment descriptions, marks weightage, passing marks criteria, and deadlines.
-- **Interactive Assignment Submission Modal**:
-  - Clean modal dialog displaying the assignment prompt, instructions, and due date.
-  - Monospace text area supporting code submissions, architecture write-ups, or public repository URLs.
-  - Updates status in real-time to `Submitted`, disabling duplicate resubmissions until graded.
-- **Interactive Timed Quiz Modal**:
-  - Timed multiple-choice quiz engine with custom time limits per quiz.
-  - Radio question options with interactive selection highlights.
-  - Real-time question progress indicator (e.g., `4 of 4 answered`).
-  - Auto-grading engine comparing selections against `correctOptionIndex`.
-  - Instant score report with pass/fail evaluation based on `passingScorePercentage`.
-  - Detailed explanation breakdown for each answer.
-- **Persistence & Synchronization**:
-  - Powered by `LearningContext.tsx` and persisted via `edusphere_v1_assignment_submissions` and `edusphere_v1_quiz_submissions`.
+- **Executive KPI Metric Cards (`src/pages/reports/ReportsAnalytics.tsx`)**:
+  - **Total Active Learners**: Aggregate headcount with month-over-month velocity.
+  - **Live Curriculum Tracks**: Registered course catalog across 6 academic disciplines.
+  - **Active Course Enrollments**: Verified student-to-course mapping count.
+  - **Gross Estimated Revenue**: Dynamic calculation reflecting catalog commercial value: `courses.reduce((acc, c) => acc + c.price * 5, 0)`.
+- **Interactive Recharts Visualizations**:
+  - **Monthly Enrollment & Completion Velocity (`BarChart`)**: Dual-bar comparison tracking new registrations vs course completions over time.
+  - **Curriculum by Category (`PieChart` / Donut)**: Radial distribution breakdown of active courses across Design, Development, Business, and IT tracks.
+  - **Monthly Platform Revenue Growth (`LineChart`)**: Curvature line chart displaying commercial trendlines and financial velocity.
+- **Top Rated Curriculum Leaderboard**:
+  - Filtered table spotlighting highest-performing courses ranked by student evaluation score (1.0 to 5.0).
+- **One-Click Institutional CSV Export**:
+  - Client-side CSV generation exporting course name, category, instructor, price, rating, and enrollment count with direct browser download.
 
 ---
 
 ## 🧪 Automated Testing
 
-Unit and integration tests for Module 8 are located in [`src/test/assignments.test.tsx`](./src/test/assignments.test.tsx) and [`src/test/learning.test.tsx`](./src/test/learning.test.tsx):
-- Verifies assignment card rendering with due dates and weightage.
-- Tests interactive assignment submission and status transition from `Pending` to `Submitted`.
-- Tests starting timed quizzes, answering questions, and evaluating scores and pass/fail states.
+Unit and integration tests for Module 9 are located in [`src/test/reports.test.tsx`](./src/test/reports.test.tsx):
+- Verifies executive dashboard metrics and chart container rendering.
+- Tests one-click CSV export blob creation and simulated anchor download.
 
 ```bash
 # Run tests
