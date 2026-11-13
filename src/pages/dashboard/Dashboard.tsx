@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { StudentDashboard } from './StudentDashboard';
 import {
   GraduationCap,
   Users,
@@ -14,13 +15,10 @@ import {
   ExternalLink,
   Sparkles,
   ArrowUpRight,
-  BookOpen,
-  Award,
   FileCheck2,
   LineChart as LineChartIcon,
   Copy,
   Check,
-  PlayCircle,
   PieChart as PieChartIcon,
   TrendingUp,
   Mic,
@@ -73,7 +71,7 @@ export const Dashboard: React.FC = () => {
   const { students } = useStudents();
   const { instructors } = useInstructors();
   const { enrollments } = useEnrollment();
-  const { assignments, quizzes, assignmentSubmissions, quizSubmissions } = useLearning();
+  const { assignmentSubmissions, quizSubmissions } = useLearning();
 
   const currentRole: UserRole = role || user?.role || 'admin';
 
@@ -158,48 +156,6 @@ export const Dashboard: React.FC = () => {
     return studentIds.size;
   }, [instructorEnrollments]);
 
-  // Student-specific calculations
-  const matchingStudent = useMemo(() => {
-    return (
-      students.find(
-        (s) =>
-          s.id === user?.id ||
-          s.email.toLowerCase() === user?.email?.toLowerCase() ||
-          s.fullName.toLowerCase() === user?.name?.toLowerCase()
-      ) || students[0]
-    );
-  }, [students, user]);
-
-  const studentEnrollments = useMemo(() => {
-    const sId = matchingStudent?.id;
-    return enrollments.filter(
-      (e) =>
-        e.studentId === sId ||
-        e.studentId === user?.id ||
-        (user?.enrolledCourseIds || []).includes(e.courseId)
-    );
-  }, [enrollments, matchingStudent, user]);
-
-  const studentAvgProgress = useMemo(() => {
-    if (studentEnrollments.length === 0) return 0;
-    const sum = studentEnrollments.reduce((acc, e) => acc + (e.progressPercentage || 0), 0);
-    return Math.round(sum / studentEnrollments.length);
-  }, [studentEnrollments]);
-
-  const studentCompletedLessons = useMemo(() => {
-    return studentEnrollments.reduce((acc, e) => acc + (e.completedLessons?.length || 0), 0);
-  }, [studentEnrollments]);
-
-  // Enrolled courses details for student quick resume
-  const studentCourseCards = useMemo(() => {
-    return studentEnrollments
-      .map((enr) => {
-        const course = courses.find((c) => c.id === enr.courseId);
-        return course ? { ...course, enrollment: enr } : null;
-      })
-      .filter(Boolean) as (typeof courses[0] & { enrollment: typeof studentEnrollments[0] })[];
-  }, [studentEnrollments, courses]);
-
   // -------------------------------------------------------------
   // DYNAMIC ACTIVITY FEED
   // -------------------------------------------------------------
@@ -279,6 +235,11 @@ export const Dashboard: React.FC = () => {
     }
   };
 
+  // If role is student, render dedicated student dashboard (not shown to admin and instructor)
+  if (currentRole === 'student') {
+    return <StudentDashboard />;
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* ========================================================= */}
@@ -291,9 +252,7 @@ export const Dashboard: React.FC = () => {
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold tracking-wide uppercase">
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                 <span>
-                  {currentRole === 'admin' && 'Institutional Executive Core'}
-                  {currentRole === 'instructor' && 'Faculty Academic Hub'}
-                  {currentRole === 'student' && 'Student Learning Center'}
+                  {currentRole === 'admin' ? 'Institutional Executive Core' : 'Faculty Academic Hub'}
                 </span>
               </span>
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-400/20 text-emerald-200 text-xs font-medium">
@@ -307,12 +266,9 @@ export const Dashboard: React.FC = () => {
             </h1>
 
             <p className="mt-2 text-xs sm:text-sm text-brand-100 leading-relaxed max-w-xl">
-              {currentRole === 'admin' &&
-                'Executive control center. Monitor institutional KPIs, oversee academic curriculum, manage student enrollments, and track system health.'}
-              {currentRole === 'instructor' &&
-                'Faculty teaching portal. Manage course assignments, inspect active learner cohorts, review assignment submissions, and conduct live sessions.'}
-              {currentRole === 'student' &&
-                'Personal learning workspace. Resume active coursework, track lesson progress milestones, submit assignments, and join live faculty workshops.'}
+              {currentRole === 'admin'
+                ? 'Executive control center. Monitor institutional KPIs, oversee academic curriculum, manage student enrollments, and track system health.'
+                : 'Faculty teaching portal. Manage course assignments, inspect active learner cohorts, review assignment submissions, and conduct live sessions.'}
             </p>
           </div>
 
@@ -354,176 +310,7 @@ export const Dashboard: React.FC = () => {
       {/* EXECUTIVE & ROLE-SPECIFIC KPI METRICS CARDS                 */}
       {/* ========================================================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {currentRole === 'student' ? (
-          <>
-            {/* Student Metric 1: My Enrolled Courses */}
-            <Card className="p-5 flex flex-col justify-between" hover>
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    My Enrolled Courses
-                  </span>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">
-                      {studentEnrollments.length}
-                    </span>
-                    <span className="inline-flex items-center text-xs font-bold text-brand-600 bg-brand-50 dark:bg-brand-950/60 px-1.5 py-0.5 rounded">
-                      Active Tracks
-                    </span>
-                  </div>
-                </div>
-                <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600">
-                  <BookOpen className="w-5 h-5" />
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-                <div className="flex justify-between text-[11px] text-slate-500">
-                  <span>Completed Courses</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">
-                    {studentEnrollments.filter((e) => e.status === 'Completed').length} / {studentEnrollments.length}
-                  </span>
-                </div>
-                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                    style={{
-                      width: `${
-                        studentEnrollments.length > 0
-                          ? (studentEnrollments.filter((e) => e.status === 'Completed').length /
-                              studentEnrollments.length) *
-                            100
-                          : 0
-                      }%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </Card>
-
-            {/* Student Metric 2: Average Learning Progress */}
-            <Card className="p-5 flex flex-col justify-between" hover>
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Course Completion
-                  </span>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">
-                      {formatPercentage(studentAvgProgress)}
-                    </span>
-                    <span className="inline-flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded">
-                      <ArrowUpRight className="w-3 h-3 mr-0.5" /> Progress
-                    </span>
-                  </div>
-                </div>
-                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600">
-                  <CheckCircle className="w-5 h-5" />
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-                <div className="flex justify-between text-[11px] text-slate-500">
-                  <span>Semester Goal: 80%</span>
-                  <span className="font-semibold text-emerald-600">
-                    {studentAvgProgress >= 80 ? 'Goal Exceeded' : `${80 - studentAvgProgress}% to Goal`}
-                  </span>
-                </div>
-                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                    style={{ width: `${studentAvgProgress}%` }}
-                  />
-                </div>
-              </div>
-            </Card>
-
-            {/* Student Metric 3: Completed Lessons */}
-            <Card className="p-5 flex flex-col justify-between" hover>
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Completed Lessons
-                  </span>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">
-                      {studentCompletedLessons}
-                    </span>
-                    <span className="inline-flex items-center text-xs font-bold text-brand-600 bg-brand-50 dark:bg-brand-950/60 px-1.5 py-0.5 rounded">
-                      Modules
-                    </span>
-                  </div>
-                </div>
-                <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600">
-                  <Award className="w-5 h-5" />
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-                <div className="flex justify-between text-[11px] text-slate-500">
-                  <span>Total Video Lectures</span>
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">
-                    {studentCompletedLessons} Attended
-                  </span>
-                </div>
-                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-purple-500 rounded-full transition-all duration-500"
-                    style={{ width: `${Math.min(100, studentCompletedLessons * 10)}%` }}
-                  />
-                </div>
-              </div>
-            </Card>
-
-            {/* Student Metric 4: Assignments & Quizzes */}
-            <Card className="p-5 flex flex-col justify-between" hover>
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Assignments & Quizzes
-                  </span>
-                  <div className="flex items-baseline gap-2 mt-1">
-                    <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">
-                      {assignments.length + quizzes.length}
-                    </span>
-                    <span className="text-xs font-bold text-amber-500">Assessed</span>
-                  </div>
-                </div>
-                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600">
-                  <FileCheck2 className="w-5 h-5" />
-                </div>
-              </div>
-
-              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-                <div className="flex justify-between text-[11px] text-slate-500">
-                  <span>Graded Submissions</span>
-                  <span className="font-semibold text-amber-600">
-                    {assignmentSubmissions.length + quizSubmissions.length} Complete
-                  </span>
-                </div>
-                <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-amber-500 rounded-full transition-all duration-500"
-                    style={{
-                      width: `${
-                        assignments.length + quizzes.length > 0
-                          ? Math.min(
-                              100,
-                              Math.round(
-                                ((assignmentSubmissions.length + quizSubmissions.length) /
-                                  (assignments.length + quizzes.length)) *
-                                  100
-                              )
-                            )
-                          : 0
-                      }%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </Card>
-          </>
-        ) : currentRole === 'instructor' ? (
+        {currentRole === 'instructor' ? (
           <>
             {/* Instructor Metric 1: Assigned Courses */}
             <Card className="p-5 flex flex-col justify-between" hover>
@@ -837,9 +624,7 @@ export const Dashboard: React.FC = () => {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-            {currentRole === 'admin' && 'Executive Administrative Actions'}
-            {currentRole === 'instructor' && 'Faculty Teaching Actions'}
-            {currentRole === 'student' && 'Quick Learning Navigation'}
+            {currentRole === 'admin' ? 'Executive Administrative Actions' : 'Faculty Teaching Actions'}
           </h2>
           <span className="text-xs text-slate-400">
             Role-tailored shortcuts without permission redirects
@@ -847,65 +632,7 @@ export const Dashboard: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {currentRole === 'student' ? (
-            <>
-              <Link to="/progress" className="block">
-                <Card className="p-4 flex items-center gap-3 group" hover>
-                  <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400 group-hover:scale-105 transition-transform">
-                    <LineChartIcon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                      My Progress
-                    </p>
-                    <p className="text-[11px] text-slate-400">Track lesson completion</p>
-                  </div>
-                </Card>
-              </Link>
-
-              <Link to="/courses" className="block">
-                <Card className="p-4 flex items-center gap-3 group" hover>
-                  <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
-                    <GraduationCap className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                      Course Catalog
-                    </p>
-                    <p className="text-[11px] text-slate-400">Browse modules</p>
-                  </div>
-                </Card>
-              </Link>
-
-              <Link to="/assignments" className="block">
-                <Card className="p-4 flex items-center gap-3 group" hover>
-                  <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform">
-                    <FileCheck2 className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                      Assignments & Quizzes
-                    </p>
-                    <p className="text-[11px] text-slate-400">Take test & submit</p>
-                  </div>
-                </Card>
-              </Link>
-
-              <Link to="/instructors" className="block">
-                <Card className="p-4 flex items-center gap-3 group" hover>
-                  <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
-                    <UserCheck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                      Faculty Mentors
-                    </p>
-                    <p className="text-[11px] text-slate-400">View instructors</p>
-                  </div>
-                </Card>
-              </Link>
-            </>
-          ) : currentRole === 'instructor' ? (
+          {currentRole === 'instructor' ? (
             <>
               <Link to="/courses" className="block">
                 <Card className="p-4 flex items-center gap-3 group" hover>
@@ -1025,73 +752,6 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* ========================================================= */}
-      {/* STUDENT "RESUME COURSEWORK" SECTION (SHOWN TO STUDENTS)    */}
-      {/* ========================================================= */}
-      {currentRole === 'student' && studentCourseCards.length > 0 && (
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <PlayCircle className="w-4 h-4 text-brand-600" />
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Continue Learning — Enrolled Curriculum
-              </h3>
-            </div>
-            <Link
-              to="/progress"
-              className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
-            >
-              Full progress tracker <ExternalLink className="w-3 h-3" />
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {studentCourseCards.slice(0, 3).map((item) => (
-              <div
-                key={item.id}
-                className="p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge variant="blue" size="sm">
-                      {item.category}
-                    </Badge>
-                    <span className="text-[11px] font-semibold text-brand-600 dark:text-brand-400">
-                      {formatPercentage(item.enrollment.progressPercentage)} Complete
-                    </span>
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 line-clamp-1 mb-1">
-                    {item.title}
-                  </h4>
-                  <p className="text-[11px] text-slate-500 line-clamp-1">
-                    Faculty: {item.instructorName}
-                  </p>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-700/60 space-y-2">
-                  <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-brand-500 rounded-full transition-all duration-300"
-                      style={{ width: `${item.enrollment.progressPercentage}%` }}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-[10px] text-slate-400">
-                      {item.enrollment.completedLessons?.length || 0} of {item.totalLessons} lessons
-                    </span>
-                    <Link
-                      to={`/courses/${item.id}`}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-brand-600 text-white hover:bg-brand-700 transition-colors"
-                    >
-                      Resume Lesson
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
 
       {/* ========================================================= */}
       {/* VISUAL ANALYTICS SECTION (RECHARTS INTEGRATION)           */}

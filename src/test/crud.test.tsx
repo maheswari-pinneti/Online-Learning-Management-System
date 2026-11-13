@@ -4,6 +4,8 @@ import React from 'react';
 import { CourseProvider, useCourses } from '@/context/CourseContext';
 import { StudentProvider, useStudents } from '@/context/StudentContext';
 import { InstructorProvider, useInstructors } from '@/context/InstructorContext';
+import { CourseService } from '@/services/courseService';
+import { apiClient } from '@/services/api';
 
 const courseWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <InstructorProvider>
@@ -112,5 +114,21 @@ describe('Modules 3, 4, 6: CRUD Operations', () => {
 
     const updated = result.current.getInstructorById(instructorId);
     expect(updated?.assignedCourseIds).toContain('course-1');
+  });
+
+  it('verifies apiClient configuration and headers', () => {
+    expect(apiClient.defaults.baseURL).toBe('https://dummyjson.com');
+    expect(apiClient.defaults.timeout).toBe(8000);
+    expect(apiClient.defaults.headers['Content-Type']).toBe('application/json');
+  });
+
+  it('CourseService.fetchExternalCourses maps items into domain entities with lessons', async () => {
+    const courses = await CourseService.fetchExternalCourses();
+    expect(courses.length).toBeGreaterThan(0);
+    expect(courses[0].id).toMatch(/^external-/);
+    expect(courses[0].lessons.length).toBeGreaterThanOrEqual(4);
+    expect(courses[0].rating).toBeGreaterThanOrEqual(4.0);
+    expect(courses[0].category).toBeDefined();
+    expect(courses[0].instructorName).toBeDefined();
   });
 });

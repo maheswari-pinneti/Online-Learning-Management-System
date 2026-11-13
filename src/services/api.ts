@@ -2,7 +2,7 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 export const apiClient = axios.create({
   baseURL: 'https://dummyjson.com',
-  timeout: 10000,
+  timeout: 8000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -11,7 +11,6 @@ export const apiClient = axios.create({
 // Request Interceptor
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    // Demo header or token if needed
     return config;
   },
   (error: AxiosError) => {
@@ -31,7 +30,12 @@ apiClient.interceptors.response.use(
     } else if (error.message) {
       message = error.message;
     }
-    console.warn('[API Client Error]:', message);
+
+    // Suppress console spam in automated test runners (e.g. Vitest / JSDOM offline tests)
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV !== 'test') {
+      console.warn('[API Client Error]:', message);
+    }
+
     return Promise.reject(new Error(message));
   }
 );
