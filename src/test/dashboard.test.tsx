@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
-import { AuthProvider } from '@/context/AuthContext';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { CourseProvider } from '@/context/CourseContext';
 import { StudentProvider } from '@/context/StudentContext';
 import { InstructorProvider } from '@/context/InstructorContext';
@@ -10,6 +10,27 @@ import { EnrollmentProvider } from '@/context/EnrollmentContext';
 import { LearningProvider } from '@/context/LearningContext';
 import { Dashboard } from '@/pages/dashboard/Dashboard';
 import { StorageService } from '@/services/storageService';
+
+/**
+ * Headless test harness controller to simulate role switching in automated tests
+ * without placing demo buttons into production UI.
+ */
+const RoleTestController: React.FC = () => {
+  const { switchDemoRole } = useAuth();
+  return (
+    <div data-testid="test-role-controller" className="sr-only">
+      <button data-testid="test-role-admin" onClick={() => switchDemoRole('admin')}>
+        admin
+      </button>
+      <button data-testid="test-role-instructor" onClick={() => switchDemoRole('instructor')}>
+        instructor
+      </button>
+      <button data-testid="test-role-student" onClick={() => switchDemoRole('student')}>
+        student
+      </button>
+    </div>
+  );
+};
 
 const TestApp: React.FC = () => {
   return (
@@ -20,6 +41,7 @@ const TestApp: React.FC = () => {
             <InstructorProvider>
               <EnrollmentProvider>
                 <LearningProvider>
+                  <RoleTestController />
                   <Dashboard />
                 </LearningProvider>
               </EnrollmentProvider>
@@ -74,31 +96,30 @@ describe('Dashboard Component & Role-Aware Operations', () => {
   it('switches role view to Student and adapts metrics and actions', async () => {
     render(<TestApp />);
 
-    // Click Student preview pill in the banner
-    const studentButtons = screen.getAllByRole('button', { name: /^student$/i });
-    expect(studentButtons.length).toBeGreaterThan(0);
-    fireEvent.click(studentButtons[0]);
+    // Switch to Student via test controller
+    const studentBtn = screen.getByTestId('test-role-student');
+    fireEvent.click(studentBtn);
 
     await waitFor(() => {
       // Student specific texts
       expect(screen.getByText(/Student Learning Center/i)).toBeInTheDocument();
-      expect(screen.getByText(/My Enrolled Courses/i)).toBeInTheDocument();
-      expect(screen.getByText(/Quick Learning Navigation/i)).toBeInTheDocument();
+      expect(screen.getByText(/Sharpen Your Skills With/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/My Courses/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/Courses completed/i)).toBeInTheDocument();
     });
   });
 
   it('switches role view to Instructor and adapts metrics and actions', async () => {
     render(<TestApp />);
 
-    // Click Instructor preview pill in the banner
-    const instructorButtons = screen.getAllByRole('button', { name: /^instructor$/i });
-    expect(instructorButtons.length).toBeGreaterThan(0);
-    fireEvent.click(instructorButtons[0]);
+    // Switch to Instructor via test controller
+    const instructorBtn = screen.getByTestId('test-role-instructor');
+    fireEvent.click(instructorBtn);
 
     await waitFor(() => {
       // Instructor specific texts
       expect(screen.getByText(/Faculty Academic Hub/i)).toBeInTheDocument();
-      expect(screen.getByText(/Teaching Catalog/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Teaching Catalog/i).length).toBeGreaterThan(0);
       expect(screen.getByText(/Faculty Teaching Actions/i)).toBeInTheDocument();
 
       // Ensure Student dashboard UI is NOT shown to instructor
@@ -116,8 +137,8 @@ describe('Dashboard Component & Role-Aware Operations', () => {
     expect(screen.queryByText(/Learn even more!/i)).not.toBeInTheDocument();
 
     // 2. Switch to Student role
-    const studentButtons = screen.getAllByRole('button', { name: /^student$/i });
-    fireEvent.click(studentButtons[0]);
+    const studentBtn = screen.getByTestId('test-role-student');
+    fireEvent.click(studentBtn);
 
     await waitFor(() => {
       // Hero Banner & Headline
@@ -151,8 +172,8 @@ describe('Dashboard Component & Role-Aware Operations', () => {
     });
 
     // 3. Switch to Instructor role: Student UI should disappear
-    const instructorButtons = screen.getAllByRole('button', { name: /^instructor$/i });
-    fireEvent.click(instructorButtons[0]);
+    const instructorBtn = screen.getByTestId('test-role-instructor');
+    fireEvent.click(instructorBtn);
 
     await waitFor(() => {
       expect(screen.getByText(/Faculty Academic Hub/i)).toBeInTheDocument();

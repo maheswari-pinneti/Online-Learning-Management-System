@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Search,
-  SlidersHorizontal,
-  Bell,
   Play,
   Bookmark,
   Star,
@@ -30,7 +27,6 @@ import { toast } from 'react-toastify';
 import { useAuth } from '@/context/AuthContext';
 import { useCourses } from '@/context/CourseContext';
 import { useEnrollment } from '@/context/EnrollmentContext';
-import { UserRole } from '@/types';
 import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
 
@@ -455,13 +451,10 @@ const CircularMetricCard: React.FC<CircularMetricProps> = ({
 // MAIN COMPONENT: STUDENT DASHBOARD
 // -------------------------------------------------------------
 export const StudentDashboard: React.FC = () => {
-  const { user, role, switchDemoRole } = useAuth();
+  const { user } = useAuth();
   const { courses } = useCourses();
   const { enrollStudent, isStudentEnrolled } = useEnrollment();
   const navigate = useNavigate();
-
-  // Search input state
-  const [searchTerm, setSearchTerm] = useState('');
 
   // Bookmarked course items
   const [bookmarkedIds, setBookmarkedIds] = useState<string[]>(['my-c-1', 'my-c-3']);
@@ -488,19 +481,9 @@ export const StudentDashboard: React.FC = () => {
     });
   };
 
-  // Filtered courses based on search
-  const filteredMyCourses = MY_COURSES.filter(
-    (c) =>
-      c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.tag.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.instructorName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const filteredPopularCourses = POPULAR_COURSES.filter(
-    (c) =>
-      c.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.tag.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Courses data
+  const filteredMyCourses = MY_COURSES;
+  const filteredPopularCourses = POPULAR_COURSES;
 
   // Handle Get Course
   const handleGetCourse = (popCourse: PopularCourseItem) => {
@@ -517,78 +500,7 @@ export const StudentDashboard: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-300 pb-12">
       {/* ========================================================= */}
-      {/* 1. TOP HEADER & SEARCH BAR WITH ROLE SWITCHER             */}
-      {/* ========================================================= */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-        {/* Search Bar matching screenshot */}
-        <div className="relative flex-1 max-w-xl">
-          <div className="relative flex items-center">
-            <Search className="absolute left-4 w-4 h-4 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search for a course, topic, or instructor"
-              className="w-full pl-11 pr-11 py-2.5 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-full text-xs sm:text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 shadow-xs focus:outline-none focus:ring-2 focus:ring-[#7047EB] focus:border-transparent transition-all"
-            />
-            <button
-              onClick={() => toast.info('Filters: Frontend, Backend, Design, Fitness, Productivity')}
-              title="Filter catalog"
-              className="absolute right-3.5 p-1 text-slate-400 hover:text-[#7047EB] transition-colors"
-            >
-              <SlidersHorizontal className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Right Controls: Role Switcher Pill + Notifications + Profile Avatar */}
-        <div className="flex items-center gap-3 self-end sm:self-auto">
-          {/* Role Preview Pill */}
-          <div className="inline-flex p-1 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold border border-slate-200/60 dark:border-slate-700">
-            {(['admin', 'instructor', 'student'] as UserRole[]).map((r) => (
-              <button
-                key={r}
-                onClick={() => {
-                  switchDemoRole(r);
-                  toast.info(`Switched dashboard view to ${r.toUpperCase()} mode.`);
-                }}
-                className={`px-3 py-1 rounded-full capitalize transition-all ${
-                  (role || user?.role) === r
-                    ? 'bg-[#7047EB] text-white shadow-xs'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                }`}
-              >
-                {r}
-              </button>
-            ))}
-          </div>
-
-          {/* Notifications Bell with Red Indicator */}
-          <button
-            onClick={() => toast.info('3 new course announcements and quiz grades available!')}
-            className="relative p-2.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:text-[#7047EB] shadow-xs transition-colors"
-            title="Notifications"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900 animate-pulse" />
-          </button>
-
-          {/* User Profile Avatar */}
-          <div className="flex items-center gap-2">
-            <img
-              src={
-                user?.avatarUrl ||
-                'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80'
-              }
-              alt={user?.name || 'Student'}
-              className="w-9 h-9 rounded-full object-cover ring-2 ring-[#7047EB]/20 shadow-xs"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================= */}
-      {/* 2. TOP HERO BANNER & 4 CIRCULAR STATS (2-COL DESKTOP)     */}
+      {/* TOP HERO BANNER & 4 CIRCULAR STATS (2-COL DESKTOP)        */}
       {/* ========================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
         {/* Left 8 Cols: Gradient Hero Banner with 3D Reading Student */}
