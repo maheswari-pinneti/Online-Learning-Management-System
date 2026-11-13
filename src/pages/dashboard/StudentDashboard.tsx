@@ -68,7 +68,7 @@ interface MyCourseItem {
 
 const MY_COURSES: MyCourseItem[] = [
   {
-    id: 'my-c-1',
+    id: 'course-react-1',
     title: 'Learn React From Scratch,Build Stunning Uls With Ease,And Create Real-World Projects.',
     tag: 'FRONTEND',
     tagColor: 'blue',
@@ -80,7 +80,7 @@ const MY_COURSES: MyCourseItem[] = [
     progressPercent: 68,
   },
   {
-    id: 'my-c-2',
+    id: 'course-java-1',
     title: 'Unlock Java Backend Power,Build Secure Restful APIs,And Deploy Your First Project.',
     tag: 'BACKEND',
     tagColor: 'rose',
@@ -92,7 +92,7 @@ const MY_COURSES: MyCourseItem[] = [
     progressPercent: 42,
   },
   {
-    id: 'my-c-3',
+    id: 'course-fitness-1',
     title: 'Get Fit At Home Fast, No Equipment Needed, 30-Day Body Challenge, Stay Healthy & Active.',
     tag: 'HEALTH & FITNESS',
     tagColor: 'emerald',
@@ -117,7 +117,7 @@ interface PopularCourseItem {
 
 const POPULAR_COURSES: PopularCourseItem[] = [
   {
-    id: 'pop-c-1',
+    id: 'course-design-1',
     title: 'Master UI By Creating, Design With Fun Projects, Explore Layouts & Colors, Bring Ideas To Life.',
     tag: 'DESIGN',
     tagColor: 'amber',
@@ -126,7 +126,7 @@ const POPULAR_COURSES: PopularCourseItem[] = [
     thumbnailType: 'design',
   },
   {
-    id: 'pop-c-2',
+    id: 'course-prod-1',
     title: 'Double Your Output Fast, Build Smart Daily Habits, Manage Time Like Pros, Stay Focused For Life.',
     tag: 'PRODUCTIVITY',
     tagColor: 'orange',
@@ -135,7 +135,7 @@ const POPULAR_COURSES: PopularCourseItem[] = [
     thumbnailType: 'productivity',
   },
   {
-    id: 'pop-c-3',
+    id: 'course-music-1',
     title: 'Train With Real Artists, Master Your Singing Voice, Perform On Any Stage, Grow From Zero To Pro',
     tag: 'MUSIC',
     tagColor: 'purple',
@@ -457,7 +457,7 @@ export const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   // Bookmarked course items
-  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>(['my-c-1', 'my-c-3']);
+  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>(['course-react-1', 'course-fitness-1']);
 
   // Statistics chart timeframe & tab
   const [statsTimeframe, setStatsTimeframe] = useState<'Weekly' | 'Monthly'>('Weekly');
@@ -488,7 +488,7 @@ export const StudentDashboard: React.FC = () => {
   // Handle Get Course
   const handleGetCourse = (popCourse: PopularCourseItem) => {
     // Check if matching course exists in catalog to enroll
-    const matching = courses.find((c) => c.title.toLowerCase().includes(popCourse.tag.toLowerCase())) || courses[0];
+    const matching = courses.find((c) => c.id === popCourse.id || c.title.toLowerCase().includes(popCourse.tag.toLowerCase())) || courses[0];
     if (matching && user) {
       if (!isStudentEnrolled(user.id, matching.id)) {
         enrollStudent(user.id, matching.id);
@@ -1145,8 +1145,9 @@ export const StudentDashboard: React.FC = () => {
                 size="sm"
                 leftIcon={<Play className="w-3.5 h-3.5 fill-white text-white" />}
                 onClick={() => {
+                  const targetId = previewCourse.id;
                   setPreviewCourse(null);
-                  navigate('/courses');
+                  navigate(`/courses/${targetId}`);
                 }}
                 className="bg-[#7047EB] hover:bg-[#5E35D8]"
               >
