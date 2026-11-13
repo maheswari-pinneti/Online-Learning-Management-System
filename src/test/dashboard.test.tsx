@@ -100,6 +100,64 @@ describe('Dashboard Component & Role-Aware Operations', () => {
       expect(screen.getByText(/Faculty Academic Hub/i)).toBeInTheDocument();
       expect(screen.getByText(/Teaching Catalog/i)).toBeInTheDocument();
       expect(screen.getByText(/Faculty Teaching Actions/i)).toBeInTheDocument();
+
+      // Ensure Student dashboard UI is NOT shown to instructor
+      expect(screen.queryByText(/Sharpen Your Skills With/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Learn even more!/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it('renders complete dedicated Student dashboard UI and enforces role separation from admin and instructor', async () => {
+    render(<TestApp />);
+
+    // 1. Initial view is Admin: Student Dashboard UI MUST NOT be rendered
+    expect(screen.getByText(/Institutional Learning Analytics/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Sharpen Your Skills With/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Learn even more!/i)).not.toBeInTheDocument();
+
+    // 2. Switch to Student role
+    const studentButtons = screen.getAllByRole('button', { name: /^student$/i });
+    fireEvent.click(studentButtons[0]);
+
+    await waitFor(() => {
+      // Hero Banner & Headline
+      expect(screen.getByText(/Sharpen Your Skills With/i)).toBeInTheDocument();
+      expect(screen.getByText(/Join Now/i)).toBeInTheDocument();
+
+      // Circular Metric Cards
+      expect(screen.getByText(/Courses completed/i)).toBeInTheDocument();
+      expect(screen.getByText(/Courses in progress/i)).toBeInTheDocument();
+      expect(screen.getByText(/Total learning time/i)).toBeInTheDocument();
+      expect(screen.getByText(/Daily Learning Streak/i)).toBeInTheDocument();
+
+      // My Courses Section
+      expect(screen.getAllByText(/My Courses/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/Learn React From Scratch/i)).toBeInTheDocument();
+      expect(screen.getByText(/Unlock Java Backend Power/i)).toBeInTheDocument();
+      expect(screen.getByText(/Get Fit At Home Fast/i)).toBeInTheDocument();
+
+      // Statistics Section
+      expect(screen.getByText(/Your statistics/i)).toBeInTheDocument();
+      expect(screen.getByText(/Learning Hours/i)).toBeInTheDocument();
+
+      // Popular Courses Section
+      expect(screen.getByText(/Popular Courses/i)).toBeInTheDocument();
+      expect(screen.getByText(/Master UI By Creating/i)).toBeInTheDocument();
+      expect(screen.getByText(/Double Your Output Fast/i)).toBeInTheDocument();
+
+      // Promo CTA Section
+      expect(screen.getByText(/Learn even more!/i)).toBeInTheDocument();
+      expect(screen.getByText(/Go Premium/i)).toBeInTheDocument();
+    });
+
+    // 3. Switch to Instructor role: Student UI should disappear
+    const instructorButtons = screen.getAllByRole('button', { name: /^instructor$/i });
+    fireEvent.click(instructorButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Faculty Academic Hub/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Sharpen Your Skills With/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Learn even more!/i)).not.toBeInTheDocument();
     });
   });
 });
