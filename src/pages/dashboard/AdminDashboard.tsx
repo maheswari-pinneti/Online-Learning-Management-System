@@ -3,37 +3,30 @@ import { Link } from 'react-router-dom';
 import {
   GraduationCap,
   Users,
-  UserCheck,
-  CheckCircle,
-  PlusCircle,
-  UserPlus,
-  BarChart3,
+  Award,
   Calendar,
   Clock,
   Video,
   ExternalLink,
-  Sparkles,
-  ArrowUpRight,
-  Copy,
+  MoreVertical,
+  Download,
   Check,
-  PieChart as PieChartIcon,
-  TrendingUp,
+  ChevronDown,
+  BookOpen,
+  Folder,
+  FileText,
+  Heart,
   Mic,
   MicOff,
   VideoOff,
+  Copy,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
   PieChart,
   Pie,
   Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
-  Legend,
 } from 'recharts';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/context/AuthContext';
@@ -41,23 +34,54 @@ import { useCourses } from '@/context/CourseContext';
 import { useStudents } from '@/context/StudentContext';
 import { useInstructors } from '@/context/InstructorContext';
 import { useEnrollment } from '@/context/EnrollmentContext';
-import { Card } from '@/components/common/Card';
-import { Badge } from '@/components/common/Badge';
-import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
-import { INITIAL_UPCOMING_CLASSES, INITIAL_ACTIVITIES } from '@/utils/mockData';
-import { formatDate, formatPercentage, formatCurrency } from '@/utils/formatters';
-import { UpcomingClass, ActivityItem } from '@/types';
+import { Button } from '@/components/common/Button';
+import { INITIAL_UPCOMING_CLASSES } from '@/utils/mockData';
+import { UpcomingClass } from '@/types';
 
-const CHART_COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#14b8a6'];
+// ----------------------------------------------------------------------
+// DATA TYPES & MOCKS FOR SCHOOOLI ADMIN DESIGN SPEC
+// ----------------------------------------------------------------------
+interface StarStudent {
+  id: string;
+  name: string;
+  studentId: string;
+  marks: number;
+  percent: number;
+  avatar: string;
+}
 
-const MONTHLY_ANALYTICS = [
-  { month: 'Nov', enrollments: 45, completions: 22, activeLearners: 50 },
-  { month: 'Dec', enrollments: 62, completions: 35, activeLearners: 74 },
-  { month: 'Jan', enrollments: 88, completions: 48, activeLearners: 95 },
-  { month: 'Feb', enrollments: 110, completions: 64, activeLearners: 120 },
-  { month: 'Mar', enrollments: 135, completions: 89, activeLearners: 152 },
-  { month: 'Apr', enrollments: 168, completions: 114, activeLearners: 185 },
+const INITIAL_STAR_STUDENTS: StarStudent[] = [
+  {
+    id: 's-1',
+    name: 'Evelyn Harper',
+    studentId: 'PRE43178',
+    marks: 1185,
+    percent: 98,
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 's-2',
+    name: 'Diana Plenty',
+    studentId: 'PRE43174',
+    marks: 1165,
+    percent: 91,
+    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&auto=format&fit=crop&q=80',
+  },
+  {
+    id: 's-3',
+    name: 'John Millar',
+    studentId: 'PRE43187',
+    marks: 1175,
+    percent: 92,
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
+  },
+];
+
+const DONUT_DATA = [
+  { name: 'Math', value: 6750, color: '#f59e0b' },
+  { name: 'English', value: 5250, color: '#7047eb' },
+  { name: 'Chemistry', value: 3000, color: '#22c55e' },
 ];
 
 export const AdminDashboard: React.FC = () => {
@@ -67,877 +91,884 @@ export const AdminDashboard: React.FC = () => {
   const { instructors } = useInstructors();
   const { enrollments } = useEnrollment();
 
-  // Modal State for Live Session
+  // Selection state for star students table
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(['s-2']);
+
+  // Class Routine filter state
+  const [selectedDay, setSelectedDay] = useState('Today');
+  const [selectedClass, setSelectedClass] = useState('All Classes');
+  const [selectedSection, setSelectedSection] = useState('All Sections');
+
+  // Best Performers filter timeframe
+  const [bestPerformersTimeframe, setBestPerformersTimeframe] = useState('Weekly');
+
+  // Live session virtual classroom modal
   const [selectedLiveClass, setSelectedLiveClass] = useState<UpcomingClass | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
 
-  // Analytics Tab State
-  const [activeChartTab, setActiveChartTab] = useState<'trends' | 'categories'>('trends');
+  // Dynamic values synced with app context
+  const totalStudentsDisplay = useMemo(() => {
+    // Matches screenshot "15.00K" base with real student dynamic additions
+    const count = 15000 + (students.length > 5 ? (students.length - 5) * 10 : 0);
+    return `${(count / 1000).toFixed(2)}K`;
+  }, [students]);
 
-  // Activity Feed Filter State
-  const [activityFilter, setActivityFilter] = useState<'all' | 'enrollment' | 'course' | 'assessment'>('all');
-
-  // Metrics
-  const totalCourses = courses.length;
-  const totalStudents = students.length;
-  const activeStudentsCount = students.filter((s) => s.status === 'Active').length || totalStudents;
-  const totalInstructors = instructors.length;
-
-  const totalProgress = enrollments.reduce((acc, e) => acc + (e.progressPercentage || 0), 0);
-  const averageCompletionRate =
-    enrollments.length > 0 ? Math.round(totalProgress / enrollments.length) : 0;
-
-  const facultyAvgRating = useMemo(() => {
-    if (instructors.length === 0) return 5.0;
-    const sum = instructors.reduce((acc, i) => acc + (i.rating || 0), 0);
-    return Number((sum / instructors.length).toFixed(2));
+  const totalTeachersDisplay = useMemo(() => {
+    // Matches screenshot "200" base with live instructors
+    return instructors.length > 0 ? `${196 + instructors.length}` : '200';
   }, [instructors]);
 
-  const uniqueCategories = useMemo(() => {
-    return Array.from(new Set(courses.map((c) => c.category)));
-  }, [courses]);
+  const totalAwardsDisplay = useMemo(() => {
+    // Matches screenshot "5.6K" awards / certifications
+    return '5.6K';
+  }, []);
 
-  const categoryChartData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    courses.forEach((c) => {
-      counts[c.category] = (counts[c.category] || 0) + 1;
-    });
-    return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [courses]);
+  const totalCoursesEnrolled = useMemo(() => {
+    return 15000 + enrollments.length;
+  }, [enrollments]);
 
-  const topCourses = useMemo(() => {
-    return [...courses].sort((a, b) => b.rating - a.rating).slice(0, 3);
-  }, [courses]);
-
-  const combinedActivities = useMemo(() => {
-    const list: ActivityItem[] = [...INITIAL_ACTIVITIES];
-
-    courses
-      .filter((c) => c.isCustom)
-      .slice(0, 2)
-      .forEach((c) => {
-        list.unshift({
-          id: `act-course-${c.id}`,
-          type: 'course_created',
-          title: 'Curriculum Course Added',
-          description: `"${c.title}" was added to ${c.category} category.`,
-          timestamp: 'Just recently',
-        });
-      });
-
-    enrollments.slice(-2).forEach((e) => {
-      const st = students.find((s) => s.id === e.studentId);
-      const cr = courses.find((c) => c.id === e.courseId);
-      if (st && cr) {
-        list.unshift({
-          id: `act-enr-${e.id}`,
-          type: 'enrollment',
-          title: 'Course Enrollment',
-          description: `${st.fullName} enrolled in "${cr.title}".`,
-          timestamp: 'Recent session',
+  // Star students list synced with students context
+  const starStudentsList: StarStudent[] = useMemo(() => {
+    const list = [...INITIAL_STAR_STUDENTS];
+    // Sync additional students from context if any exist
+    students.slice(0, 2).forEach((st, idx) => {
+      const studentName = st.fullName || (st as any).name;
+      if (studentName && !list.some((s) => s.name.toLowerCase() === studentName.toLowerCase())) {
+        list.push({
+          id: `context-${st.id}`,
+          name: studentName,
+          studentId: `PRE43${190 + idx}`,
+          marks: 1140 + idx * 15,
+          percent: 88 + idx * 3,
+          avatar: st.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
         });
       }
     });
-
     return list;
-  }, [courses, enrollments, students]);
+  }, [students]);
 
-  const filteredActivities = useMemo(() => {
-    if (activityFilter === 'all') return combinedActivities;
-    if (activityFilter === 'enrollment') {
-      return combinedActivities.filter((a) => a.type === 'enrollment');
-    }
-    if (activityFilter === 'course') {
-      return combinedActivities.filter((a) => a.type === 'course_created');
-    }
-    if (activityFilter === 'assessment') {
-      return combinedActivities.filter(
-        (a) => a.type === 'assignment_submitted' || a.type === 'quiz_completed'
-      );
-    }
-    return combinedActivities;
-  }, [activityFilter, combinedActivities]);
-
-  const handleOpenLiveClass = (cls: UpcomingClass) => {
-    setSelectedLiveClass(cls);
-    setIsCopied(false);
-    setIsMicMuted(false);
-    setIsVideoOff(false);
+  // Toggle student row checkbox
+  const toggleStudentSelection = (id: string) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
   };
 
-  const handleCopyLink = () => {
-    if (!selectedLiveClass) return;
-    const link =
-      selectedLiveClass.roomUrl ||
-      `https://classroom.edusphere.edu/room/${selectedLiveClass.id}?token=inst-auth-token-9821`;
-    navigator.clipboard.writeText(link);
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
     setIsCopied(true);
-    toast.success('Live classroom link copied to clipboard!');
-    setTimeout(() => setIsCopied(false), 3000);
-  };
-
-  const handleLaunchMeeting = () => {
-    if (!selectedLiveClass) return;
-    toast.info(`Connecting to live stream: ${selectedLiveClass.title}`);
-    if (selectedLiveClass.roomUrl && selectedLiveClass.roomUrl.startsWith('http')) {
-      window.open(selectedLiveClass.roomUrl, '_blank', 'noopener,noreferrer');
-    }
+    toast.success('Session link copied to clipboard!');
+    setTimeout(() => setIsCopied(false), 2000);
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-200">
+    <div className="space-y-6 animate-in fade-in duration-300 pb-12 font-sans">
       {/* ========================================================= */}
-      {/* 1. EXECUTIVE WELCOME BANNER                                */}
+      {/* 1. WELCOME HEADER & TOP 3 METRIC CARDS (SCHOOOLI SPEC)    */}
       {/* ========================================================= */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-600 via-brand-700 to-accent-700 text-white p-6 sm:p-8 shadow-xl shadow-brand-500/10">
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="max-w-2xl">
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold tracking-wide uppercase">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>Institutional Executive Core</span>
-              </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-400/20 text-emerald-200 text-xs font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Live Cloud Sync
-              </span>
-            </div>
-
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Welcome back, {user?.name || 'Administrator'}!
-            </h1>
-
-            <p className="mt-2 text-xs sm:text-sm text-brand-100 leading-relaxed max-w-xl">
-              Executive control center. Monitor institutional KPIs, oversee academic curriculum, manage student enrollments, and track system health.
-            </p>
-          </div>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        {/* Left: Welcome Title & Subtitle */}
+        <div className="space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Welcome back, {user?.name || 'Administrator'}.
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+            Navigate the future of education with Schoooli &bull;{' '}
+            <span className="font-semibold text-[#7047EB]">Institutional Learning Analytics</span>
+          </p>
         </div>
 
-        <div className="absolute right-0 -bottom-10 w-72 h-72 bg-white/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute left-1/2 -top-10 w-48 h-48 bg-accent-400/10 rounded-full blur-2xl pointer-events-none" />
+        {/* Right: 3 Metric Cards side-by-side */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:min-w-[580px]">
+          {/* Card 1: Students */}
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-[#F5F2FD] dark:bg-purple-950/20 border border-purple-100/80 dark:border-purple-900/40 shadow-xs hover:shadow-sm transition-all">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Students
+              </p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 tracking-tight">
+                {totalStudentsDisplay}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 flex items-center justify-center text-[#7047EB] shadow-xs ring-4 ring-purple-100/60 dark:ring-purple-900/30">
+              <GraduationCap className="w-6 h-6" />
+            </div>
+          </div>
+
+          {/* Card 2: Teachers */}
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-[#F0F8FF] dark:bg-blue-950/20 border border-blue-100/80 dark:border-blue-900/40 shadow-xs hover:shadow-sm transition-all">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Teachers
+              </p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 tracking-tight">
+                {totalTeachersDisplay}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 flex items-center justify-center text-blue-500 shadow-xs ring-4 ring-blue-100/60 dark:ring-blue-900/30">
+              <Users className="w-6 h-6" />
+            </div>
+          </div>
+
+          {/* Card 3: Awards */}
+          <div className="flex items-center justify-between p-4 rounded-2xl bg-[#FFF9F2] dark:bg-amber-950/20 border border-amber-100/80 dark:border-amber-900/40 shadow-xs hover:shadow-sm transition-all">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                Awards
+              </p>
+              <p className="text-2xl font-black text-slate-900 dark:text-white mt-0.5 tracking-tight">
+                {totalAwardsDisplay}
+              </p>
+            </div>
+            <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-900 flex items-center justify-center text-amber-500 shadow-xs ring-4 ring-amber-100/60 dark:ring-amber-900/30">
+              <Award className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ========================================================= */}
-      {/* 2. EXECUTIVE KPI CARDS                                     */}
+      {/* 2. MAIN 3-COLUMN DASHBOARD GRID (SCHOOOLI EXACT REPLICA)  */}
       {/* ========================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Active Learners */}
-        <Card className="p-5 flex flex-col justify-between" hover>
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Active Learners
-              </span>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">
-                  {totalStudents}
-                </span>
-                <span className="inline-flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded">
-                  <ArrowUpRight className="w-3 h-3 mr-0.5" /> Live
-                </span>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* ======================================================= */}
+        {/* LEFT COLUMN: Class Routine, Star Students, Notifications*/}
+        {/* ======================================================= */}
+        <div className="lg:col-span-6 space-y-6">
+          {/* Card: Class Routine */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            {/* Header & Filter Controls */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                  Class Routine
+                </h2>
+                <p className="text-xs text-slate-400">
+                  Upcoming Classes & Workshops
+                </p>
+              </div>
+
+              {/* Routine Dropdown Filters */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    const days = ['Today', 'Tomorrow', 'This Week'];
+                    const next = days[(days.indexOf(selectedDay) + 1) % days.length];
+                    setSelectedDay(next);
+                    toast.info(`Filtered routine by: ${next}`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:border-slate-300 transition-colors"
+                >
+                  <span>{selectedDay}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    const classes = ['All Classes', 'Class 10', 'Class 11', 'Class 12'];
+                    const next = classes[(classes.indexOf(selectedClass) + 1) % classes.length];
+                    setSelectedClass(next);
+                    toast.info(`Filtered routine by: ${next}`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:border-slate-300 transition-colors"
+                >
+                  <span>{selectedClass}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+
+                <button
+                  onClick={() => {
+                    const sections = ['Section A', 'Section B', 'All Sections'];
+                    const next = sections[(sections.indexOf(selectedSection) + 1) % sections.length];
+                    setSelectedSection(next);
+                    toast.info(`Filtered routine by: ${next}`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200/70 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 hover:border-slate-300 transition-colors"
+                >
+                  <span>{selectedSection}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                </button>
+
+                <Link
+                  to="/courses"
+                  className="text-xs font-semibold text-[#7047EB] hover:text-[#5E36D9] ml-1"
+                >
+                  View All
+                </Link>
               </div>
             </div>
-            <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600">
-              <Users className="w-5 h-5" />
-            </div>
-          </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-            <div className="flex justify-between text-[11px] text-slate-500">
-              <span>{activeStudentsCount} Active Learners</span>
-              <span className="font-semibold text-slate-700 dark:text-slate-300">
-                {Math.min(100, Math.round((totalStudents / 100) * 100))}% of 100 Goal
-              </span>
-            </div>
-            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, (totalStudents / 100) * 100)}%` }}
-              />
-            </div>
-          </div>
-        </Card>
+            {/* Routine Month Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Routine 1: October 2023 */}
+              <div className="p-4 rounded-2xl border border-blue-100 dark:border-blue-900/30 bg-blue-50/30 dark:bg-blue-950/10 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <button className="text-slate-400 hover:text-slate-600 p-1">
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    October, 2023
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Your October class routine is here
+                  </p>
+                </div>
 
-        {/* Metric 2: Completion Rate */}
-        <Card className="p-5 flex flex-col justify-between" hover>
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Completion Velocity
-              </span>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">
-                  {formatPercentage(averageCompletionRate)}
-                </span>
-                <span className="inline-flex items-center text-xs font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded">
-                  <ArrowUpRight className="w-3 h-3 mr-0.5" /> Rate
-                </span>
+                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-blue-100/60 dark:border-blue-900/20">
+                  <button
+                    onClick={() => toast.success('October class routine PDF downloaded successfully.')}
+                    className="flex-1 py-2 px-3 rounded-xl bg-[#7047EB] hover:bg-[#5E36D9] text-white text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download routine (pdf)</span>
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedLiveClass(INITIAL_UPCOMING_CLASSES[0])}
+                    className="py-2 px-3 rounded-xl bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/40 text-[#7047EB] dark:text-purple-300 text-xs font-bold transition-colors flex items-center gap-1"
+                    title="Launch Live Virtual Classroom Session"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Join</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Routine 2: November 2023 */}
+              <div className="p-4 rounded-2xl border border-amber-100 dark:border-amber-900/30 bg-amber-50/30 dark:bg-amber-950/10 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <button className="text-slate-400 hover:text-slate-600 p-1">
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                    November, 2023
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Your November class routine is here
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 mt-4 pt-3 border-t border-amber-100/60 dark:border-amber-900/20">
+                  <button
+                    onClick={() => toast.success('November class routine PDF downloaded successfully.')}
+                    className="flex-1 py-2 px-3 rounded-xl bg-slate-900 hover:bg-black text-white text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download routine (pdf)</span>
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedLiveClass(INITIAL_UPCOMING_CLASSES[1] || INITIAL_UPCOMING_CLASSES[0])}
+                    className="py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors flex items-center gap-1"
+                    title="Launch Live Virtual Classroom Session"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Join</span>
+                  </button>
+                </div>
               </div>
             </div>
-            <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600">
-              <CheckCircle className="w-5 h-5" />
+          </div>
+
+          {/* Card: Star Students Table */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                Star Students
+              </h2>
+              <button className="text-slate-400 hover:text-slate-600 p-1">
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="py-2 px-2 w-8">
+                      <span className="sr-only">Select</span>
+                    </th>
+                    <th className="py-2 px-3">Name</th>
+                    <th className="py-2 px-3">ID</th>
+                    <th className="py-2 px-3">Marks</th>
+                    <th className="py-2 px-3 text-right">Percent</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100/80 dark:divide-slate-800/80 text-xs text-slate-700 dark:text-slate-200">
+                  {starStudentsList.map((st) => {
+                    const isChecked = selectedStudentIds.includes(st.id);
+                    return (
+                      <tr
+                        key={st.id}
+                        onClick={() => toggleStudentSelection(st.id)}
+                        className={`group hover:bg-slate-50/70 dark:hover:bg-slate-800/40 cursor-pointer transition-colors ${
+                          isChecked ? 'bg-purple-50/40 dark:bg-purple-950/10' : ''
+                        }`}
+                      >
+                        <td className="py-3 px-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleStudentSelection(st.id);
+                            }}
+                            className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${
+                              isChecked
+                                ? 'bg-[#7047EB] text-white'
+                                : 'border border-slate-300 dark:border-slate-600 text-transparent'
+                            }`}
+                          >
+                            <Check className="w-3 h-3 stroke-[3]" />
+                          </button>
+                        </td>
+
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              src={st.avatar}
+                              alt={st.name}
+                              className="w-7 h-7 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700"
+                            />
+                            <span className="font-semibold text-slate-900 dark:text-white">
+                              {st.name}
+                            </span>
+                          </div>
+                        </td>
+
+                        <td className="py-3 px-3 text-slate-500 dark:text-slate-400 font-mono text-[11px]">
+                          {st.studentId}
+                        </td>
+
+                        <td className="py-3 px-3 font-semibold text-slate-800 dark:text-slate-200">
+                          {st.marks}
+                        </td>
+
+                        <td className="py-3 px-3 text-right font-bold text-slate-900 dark:text-white">
+                          {st.percent}%
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-            <div className="flex justify-between text-[11px] text-slate-500">
-              <span>Target: 75% Average</span>
-              <span
-                className={`font-semibold ${
-                  averageCompletionRate >= 75 ? 'text-emerald-600' : 'text-amber-600'
-                }`}
+          {/* Card: Notifications & Activity Stream */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                  Notifications
+                </h2>
+                <p className="text-xs text-slate-400">Live Platform Activity</p>
+              </div>
+              <button
+                onClick={() => toast.info('All 12 platform notifications up to date.')}
+                className="text-xs font-semibold text-[#7047EB] hover:text-[#5E36D9]"
               >
-                {averageCompletionRate >= 75
-                  ? 'Exceeding Benchmark'
-                  : `${75 - averageCompletionRate}% below target`}
-              </span>
+                View All
+              </button>
             </div>
-            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                style={{ width: `${averageCompletionRate}%` }}
-              />
-            </div>
-          </div>
-        </Card>
 
-        {/* Metric 3: Active Curriculum Tracks */}
-        <Card className="p-5 flex flex-col justify-between" hover>
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Curriculum Tracks
-              </span>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">
-                  {totalCourses}
-                </span>
-                <span className="inline-flex items-center text-xs font-bold text-brand-600 bg-brand-50 dark:bg-brand-950/60 px-1.5 py-0.5 rounded">
-                  Catalog
-                </span>
+            <div className="space-y-3">
+              {/* Notification Item 1 */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100/70 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center font-bold text-xs uppercase overflow-hidden">
+                    <img
+                      src="https://images.unsplash.com/photo-1588072432836-e10032774350?w=100&auto=format&fit=crop&q=80"
+                      alt="Closure"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                      Emergency School Closure
+                    </p>
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> 4:00 PM
+                      </span>
+                      <span>&bull;</span>
+                      <span>15 Aug</span>
+                    </div>
+                  </div>
+                </div>
+                <button className="text-slate-400 hover:text-slate-600 p-1">
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Notification Item 2 */}
+              <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100/70 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 flex items-center justify-center font-bold text-xs uppercase overflow-hidden">
+                    <img
+                      src="https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=100&auto=format&fit=crop&q=80"
+                      alt="Clubs"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                      New Extracurricular Clubs
+                    </p>
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-0.5">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" /> 4:00 PM
+                      </span>
+                      <span>&bull;</span>
+                      <span>15 Aug</span>
+                    </div>
+                  </div>
+                </div>
+                <button className="text-slate-400 hover:text-slate-600 p-1">
+                  <MoreVertical className="w-4 h-4" />
+                </button>
               </div>
             </div>
-            <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950/60 text-brand-600">
-              <GraduationCap className="w-5 h-5" />
-            </div>
           </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-            <div className="flex justify-between text-[11px] text-slate-500">
-              <span>{uniqueCategories.length} Disciplines</span>
-              <span className="font-semibold text-brand-600">Accredited Tracks</span>
-            </div>
-            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-brand-500 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, (totalCourses / 20) * 100)}%` }}
-              />
-            </div>
-          </div>
-        </Card>
-
-        {/* Metric 4: Faculty Net Rating */}
-        <Card className="p-5 flex flex-col justify-between" hover>
-          <div className="flex items-start justify-between">
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Faculty Net Rating
-              </span>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">
-                  {facultyAvgRating}
-                </span>
-                <span className="text-xs font-bold text-amber-500">/ 5.0 ⭐</span>
-              </div>
-            </div>
-            <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600">
-              <UserCheck className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-            <div className="flex justify-between text-[11px] text-slate-500">
-              <span>{totalInstructors} Verified Experts</span>
-              <span className="font-semibold text-purple-600">Top Tier Faculty</span>
-            </div>
-            <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-purple-500 rounded-full transition-all duration-500"
-                style={{ width: `${(facultyAvgRating / 5) * 100}%` }}
-              />
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* ========================================================= */}
-      {/* 3. EXECUTIVE ACTIONS                                       */}
-      {/* ========================================================= */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-slate-800 dark:text-slate-200">
-            Executive Administrative Actions
-          </h2>
-          <span className="text-xs text-slate-400">
-            Direct institutional shortcuts
-          </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Link to="/courses" className="block">
-            <Card className="p-4 flex items-center gap-3 group" hover>
-              <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400 group-hover:scale-105 transition-transform">
-                <PlusCircle className="w-5 h-5" />
-              </div>
+        {/* ======================================================= */}
+        {/* CENTER COLUMN: Library, Total Exams, Best Performers   */}
+        {/* ======================================================= */}
+        <div className="lg:col-span-3 space-y-6">
+          {/* Card: Library */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                  Add Course
+                <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
+                  Library
+                </h2>
+                <p className="text-[11px] text-slate-400">
+                  Highest Rated Curriculum Tracks
                 </p>
-                <p className="text-[11px] text-slate-400">Curate curriculum</p>
               </div>
-            </Card>
-          </Link>
+              <Link to="/courses" className="text-xs font-semibold text-[#7047EB] hover:text-[#5E36D9]">
+                View All
+              </Link>
+            </div>
 
-          <Link to="/enrollment" className="block">
-            <Card className="p-4 flex items-center gap-3 group" hover>
-              <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
-                <UserPlus className="w-5 h-5" />
+            <div className="space-y-3">
+              {/* Item 1: Literature */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-100/80 dark:bg-amber-900/40 text-amber-600 flex items-center justify-center">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                      Literature
+                    </p>
+                    <p className="text-[10px] text-slate-400">{300 + courses.length} Files</p>
+                  </div>
+                </div>
+                <Link
+                  to="/courses"
+                  className="text-[11px] font-semibold text-slate-400 hover:text-[#7047EB] transition-colors"
+                >
+                  Read now
+                </Link>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                  Enroll Student
-                </p>
-                <p className="text-[11px] text-slate-400">Assign course seat</p>
-              </div>
-            </Card>
-          </Link>
 
-          <Link to="/students" className="block">
-            <Card className="p-4 flex items-center gap-3 group" hover>
-              <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform">
-                <Users className="w-5 h-5" />
+              {/* Item 2: Mathematics */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100/80 dark:bg-blue-900/40 text-blue-600 flex items-center justify-center">
+                    <Folder className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                      Mathematics
+                    </p>
+                    <p className="text-[10px] text-slate-400">1072 Files</p>
+                  </div>
+                </div>
+                <Link
+                  to="/courses"
+                  className="text-[11px] font-semibold text-slate-400 hover:text-[#7047EB] transition-colors"
+                >
+                  Read now
+                </Link>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                  Manage Students
-                </p>
-                <p className="text-[11px] text-slate-400">Directory CRUD</p>
-              </div>
-            </Card>
-          </Link>
 
-          <Link to="/reports" className="block">
-            <Card className="p-4 flex items-center gap-3 group" hover>
-              <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
-                <BarChart3 className="w-5 h-5" />
+              {/* Item 3: English */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-500 flex items-center justify-center">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                      English
+                    </p>
+                    <p className="text-[10px] text-slate-400">575 Files</p>
+                  </div>
+                </div>
+                <Link
+                  to="/courses"
+                  className="text-[11px] font-semibold text-slate-400 hover:text-[#7047EB] transition-colors"
+                >
+                  Read now
+                </Link>
               </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                  View Analytics
-                </p>
-                <p className="text-[11px] text-slate-400">Executive report</p>
-              </div>
-            </Card>
-          </Link>
-        </div>
-      </div>
 
-      {/* ========================================================= */}
-      {/* 4. VISUAL ANALYTICS SECTION                                */}
-      {/* ========================================================= */}
-      <Card className="p-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-brand-600" />
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Institutional Learning Analytics
-              </h3>
-              <p className="text-[11px] text-slate-400">
-                Enrollment velocity, cohort completion curves, and curriculum domain split
+              {/* Item 4: Science */}
+              <div className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-rose-100/80 dark:bg-rose-900/40 text-rose-500 flex items-center justify-center">
+                    <Heart className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                      Science
+                    </p>
+                    <p className="text-[10px] text-slate-400">249 Files</p>
+                  </div>
+                </div>
+                <Link
+                  to="/courses"
+                  className="text-[11px] font-semibold text-slate-400 hover:text-[#7047EB] transition-colors"
+                >
+                  Read now
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Card: Total Exams */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                Total Exams
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-rose-50 dark:bg-rose-950/50 text-rose-500 text-[10px] font-bold">
+                -16.90%
+              </span>
+            </div>
+
+            <div className="mt-2">
+              <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                256
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                Here is your total exams ratio in this month.{' '}
+                <button
+                  onClick={() => toast.info('Exam reports: 256 scheduled assessments, 94.2% completion rate.')}
+                  className="text-[#7047EB] hover:underline font-semibold"
+                >
+                  Click here to view details
+                </button>
               </p>
             </div>
           </div>
 
-          <div className="inline-flex p-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs font-medium self-start sm:self-auto">
-            <button
-              onClick={() => setActiveChartTab('trends')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-all ${
-                activeChartTab === 'trends'
-                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-xs font-semibold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5" />
-              Enrollment Trends
-            </button>
-            <button
-              onClick={() => setActiveChartTab('categories')}
-              className={`flex items-center gap-1.5 px-3 py-1 rounded-md transition-all ${
-                activeChartTab === 'categories'
-                  ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-xs font-semibold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <PieChartIcon className="w-3.5 h-3.5" />
-              Category Share
-            </button>
+          {/* Card: Best Performers */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs font-bold text-slate-900 dark:text-white">
+                Best Performers
+              </h2>
+              <button
+                onClick={() =>
+                  setBestPerformersTimeframe((prev) => (prev === 'Weekly' ? 'Monthly' : 'Weekly'))
+                }
+                className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <span>{bestPerformersTimeframe}</span>
+                <ChevronDown className="w-3 h-3" />
+              </button>
+            </div>
+
+            {/* Horizontal Timeline/Capsule Progress Bars */}
+            <div className="space-y-3.5">
+              {/* Class 06 - Math (40%) */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold text-slate-400 w-12 shrink-0">
+                  Class 06
+                </span>
+                <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-5 relative overflow-hidden flex items-center">
+                  <div
+                    className="h-full bg-gradient-to-r from-purple-400 to-[#7047EB] rounded-full flex items-center justify-between px-2 text-white text-[10px] font-bold"
+                    style={{ width: '65%' }}
+                  >
+                    <span>Math</span>
+                    <span>40%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Class 04 - GK (70%) */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold text-slate-400 w-12 shrink-0">
+                  Class 04
+                </span>
+                <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-5 relative overflow-hidden flex items-center">
+                  <div
+                    className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-between px-2 text-white text-[10px] font-bold"
+                    style={{ width: '85%' }}
+                  >
+                    <span>GK</span>
+                    <span>70%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Class 02 - Science (72%) */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold text-slate-400 w-12 shrink-0">
+                  Class 02
+                </span>
+                <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-5 relative overflow-hidden flex items-center">
+                  <div
+                    className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full flex items-center justify-between px-2 text-white text-[10px] font-bold"
+                    style={{ width: '88%' }}
+                  >
+                    <span>Science</span>
+                    <span>72%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Class 01 - English (47%) */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-semibold text-slate-400 w-12 shrink-0">
+                  Class 01
+                </span>
+                <div className="flex-1 bg-slate-100 dark:bg-slate-800 rounded-full h-5 relative overflow-hidden flex items-center">
+                  <div
+                    className="h-full bg-gradient-to-r from-pink-400 to-rose-500 rounded-full flex items-center justify-between px-2 text-white text-[10px] font-bold"
+                    style={{ width: '70%' }}
+                  >
+                    <span>English</span>
+                    <span>47%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Days of week footer ticks */}
+              <div className="flex justify-between pl-14 pr-2 text-[10px] text-slate-400 pt-1 font-mono">
+                <span>Sun</span>
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {activeChartTab === 'trends' ? (
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={MONTHLY_ANALYTICS} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="enrollmentGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
-                  </linearGradient>
-                  <linearGradient id="completionGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" opacity={0.6} />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1e293b',
-                    borderColor: '#334155',
-                    borderRadius: '8px',
-                    color: '#f8fafc',
-                    fontSize: '12px',
-                  }}
-                />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
-                <Area
-                  type="monotone"
-                  dataKey="enrollments"
-                  name="Course Enrollments"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#enrollmentGrad)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="completions"
-                  name="Graduated Completions"
-                  stroke="#3b82f6"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#completionGrad)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-            <div className="h-64 w-full">
+        {/* ======================================================= */}
+        {/* RIGHT COLUMN: Course Statistics & New Course Banner     */}
+        {/* ======================================================= */}
+        <div className="lg:col-span-3 space-y-6">
+          {/* Card: Course Statistics Donut Chart */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-xs font-bold text-slate-900 dark:text-white">
+                Course Statistics
+              </h2>
+              <button className="text-slate-400 hover:text-slate-600 p-1">
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Circular Donut Container */}
+            <div className="relative flex items-center justify-center my-3 h-48">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie
-                    data={categoryChartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={85}
-                    paddingAngle={4}
-                    dataKey="value"
-                  >
-                    {categoryChartData.map((_, idx) => (
-                      <Cell key={`cell-${idx}`} fill={CHART_COLORS[idx % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#1e293b',
-                      borderRadius: '8px',
-                      color: '#fff',
-                      fontSize: '12px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      color: '#ffffff',
+                      fontSize: '11px',
                     }}
                   />
+                  <Pie
+                    data={DONUT_DATA}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={55}
+                    outerRadius={75}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {DONUT_DATA.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
                 </PieChart>
               </ResponsiveContainer>
+
+              {/* Donut Center Text matching screenshot */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-[11px] font-medium text-slate-400">Total</span>
+                <span className="text-xl font-extrabold text-slate-900 dark:text-white">
+                  {totalCoursesEnrolled}
+                </span>
+              </div>
             </div>
-            <div className="space-y-2 pr-4">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                Curriculum Breakdown by Academic Category
-              </h4>
-              <div className="space-y-1.5">
-                {categoryChartData.map((cat, i) => (
-                  <div key={cat.name} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full"
-                        style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
-                      />
-                      <span className="font-medium text-slate-700 dark:text-slate-300">
-                        {cat.name}
-                      </span>
-                    </div>
-                    <span className="font-semibold text-slate-900 dark:text-slate-100">
-                      {cat.value} {cat.value === 1 ? 'Course' : 'Courses'}
-                    </span>
-                  </div>
-                ))}
+
+            {/* Donut Legend below chart */}
+            <div className="flex items-center justify-center gap-4 pt-2 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b]" />
+                <span>Math</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#7047eb]" />
+                <span>English</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#22c55e]" />
+                <span>Chemistry</span>
               </div>
             </div>
           </div>
-        )}
-      </Card>
 
-      {/* ========================================================= */}
-      {/* 5. 2-COLUMN: UPCOMING CLASSES + ACTIVITY FEED              */}
-      {/* ========================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <Card className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-brand-600" />
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Upcoming Classes & Workshops
-                </h3>
-              </div>
-              <Badge variant="blue" size="sm" dot>
-                Live Stream
-              </Badge>
-            </div>
+          {/* Card: New Course Promo Banner */}
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1E1B4B] via-[#312E81] to-[#4338CA] text-white p-5 shadow-lg shadow-indigo-500/10">
+            {/* Ambient Background Lights */}
+            <div className="absolute -right-8 -top-8 w-28 h-28 bg-purple-500/20 rounded-full blur-2xl" />
+            <div className="absolute -left-6 -bottom-6 w-24 h-24 bg-blue-500/20 rounded-full blur-xl" />
 
-            <div className="space-y-3">
-              {INITIAL_UPCOMING_CLASSES.map((cls) => (
-                <div
-                  key={cls.id}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 gap-3 hover:border-brand-500/30 transition-all"
-                >
-                  <div className="space-y-1">
-                    <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                      {cls.title}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-                      <span className="font-medium text-brand-600 dark:text-brand-400">
-                        {cls.courseName}
-                      </span>
-                      <span>•</span>
-                      <span>Faculty: {cls.instructorName}</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 self-end sm:self-auto">
-                    <div className="text-right text-[11px] text-slate-500">
-                      <div className="flex items-center gap-1 font-medium text-slate-700 dark:text-slate-300">
-                        <Clock className="w-3 h-3 text-slate-400" />
-                        <span>{formatDate(cls.dateTime, 'MMM dd, h:mm a')}</span>
-                      </div>
-                      <span>{cls.durationMinutes} mins duration</span>
-                    </div>
-
-                    <Button
-                      size="sm"
-                      variant="primary"
-                      leftIcon={<Video className="w-3.5 h-3.5" />}
-                      onClick={() => handleOpenLiveClass(cls)}
-                      className="shadow-xs"
-                    >
-                      Join
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Top Rated Courses Preview */}
-          <Card className="p-5">
-            <div className="flex items-center justify-between mb-4">
+            <div className="relative z-10 flex items-start justify-between gap-3">
               <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Highest Rated Curriculum Tracks
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-300">
+                  New Course
+                </span>
+                <h3 className="text-sm font-extrabold text-white mt-1 leading-snug">
+                  Build your career with API
                 </h3>
-                <p className="text-[11px] text-slate-400">
-                  Top performing modules evaluated by active students
-                </p>
+
+                <button
+                  onClick={() => toast.success('Enrolled in "Build your career with API"!')}
+                  className="mt-4 px-4 py-1.5 rounded-full bg-slate-950 hover:bg-black text-white text-xs font-semibold shadow-xs transition-colors"
+                >
+                  Enroll Now
+                </button>
               </div>
-              <Link
-                to="/courses"
-                className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
-              >
-                View all courses <ExternalLink className="w-3 h-3" />
-              </Link>
+
+              {/* 3D API Illustration Box */}
+              <div className="w-16 h-16 shrink-0 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center shadow-inner text-white font-black text-xs tracking-wider border border-white/20">
+                <div className="text-center">
+                  <p className="text-[9px] text-purple-200">REST</p>
+                  <p className="font-extrabold text-sm">API</p>
+                </div>
+              </div>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {topCourses.map((c) => (
-                <Link key={c.id} to={`/courses/${c.id}`} className="group block">
-                  <div className="rounded-xl border border-slate-200/80 dark:border-slate-800 overflow-hidden bg-slate-50/50 dark:bg-slate-800/30 group-hover:border-brand-500 transition-all flex flex-col h-full justify-between">
-                    <div>
-                      <div className="relative h-28 w-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                        <img
-                          src={c.thumbnail}
-                          alt={c.title}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600';
-                          }}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute top-2 left-2">
-                          <Badge variant="emerald" size="sm">
-                            {c.category}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <div className="p-3">
-                        <h4 className="text-xs font-semibold text-slate-900 dark:text-slate-100 line-clamp-1 group-hover:text-brand-600 transition-colors">
-                          {c.title}
-                        </h4>
-                        <p className="text-[11px] text-slate-400 mt-1 line-clamp-1">
-                          By {c.instructorName}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="p-3 pt-0 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-500 mt-2">
-                      <span className="flex items-center gap-0.5 text-amber-500 font-semibold">
-                        ⭐ {c.rating.toFixed(1)}
-                      </span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200">
-                        {formatCurrency(c.price)}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </Card>
-        </div>
-
-        {/* Right Column: Platform Activity */}
-        <div className="space-y-6">
-          <Card className="p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Live Platform Activity
-              </h3>
-              <Badge variant="slate" size="sm">
-                Real-time
-              </Badge>
-            </div>
-
-            <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-3 text-[11px]">
-              <button
-                onClick={() => setActivityFilter('all')}
-                className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
-                  activityFilter === 'all'
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setActivityFilter('enrollment')}
-                className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
-                  activityFilter === 'enrollment'
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                }`}
-              >
-                Enrollments
-              </button>
-              <button
-                onClick={() => setActivityFilter('course')}
-                className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
-                  activityFilter === 'course'
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                }`}
-              >
-                Courses
-              </button>
-              <button
-                onClick={() => setActivityFilter('assessment')}
-                className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
-                  activityFilter === 'assessment'
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
-                }`}
-              >
-                Tests
-              </button>
-            </div>
-
-            <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
-              {filteredActivities.length === 0 ? (
-                <p className="text-xs text-slate-400 py-6 text-center">
-                  No activity found in this category.
-                </p>
-              ) : (
-                filteredActivities.map((act) => (
-                  <div key={act.id} className="flex gap-3 text-xs">
-                    <div
-                      className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ring-4 ${
-                        act.type === 'enrollment'
-                          ? 'bg-blue-500 ring-blue-100 dark:ring-blue-950'
-                          : act.type === 'quiz_completed'
-                          ? 'bg-emerald-500 ring-emerald-100 dark:ring-emerald-950'
-                          : act.type === 'assignment_submitted'
-                          ? 'bg-purple-500 ring-purple-100 dark:ring-purple-950'
-                          : 'bg-brand-500 ring-brand-100 dark:ring-brand-950'
-                      }`}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-slate-800 dark:text-slate-200">
-                        {act.title}
-                      </p>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-2">
-                        {act.description}
-                      </p>
-                      <span className="text-[10px] text-slate-400 font-medium">
-                        {act.timestamp}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
+          </div>
         </div>
       </div>
 
       {/* ========================================================= */}
-      {/* 6. VIRTUAL CLASSROOM MODAL                                */}
+      {/* 3. INTERACTIVE VIRTUAL CLASSROOM SESSION MODAL            */}
       {/* ========================================================= */}
-      {selectedLiveClass && (
-        <Modal
-          isOpen={!!selectedLiveClass}
-          onClose={() => setSelectedLiveClass(null)}
-          title={`Virtual Classroom: ${selectedLiveClass.title}`}
-          description={`Course: ${selectedLiveClass.courseName} • Conducted by ${selectedLiveClass.instructorName}`}
-          maxWidth="2xl"
-        >
-          <div className="space-y-4">
-            <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex flex-col items-center justify-center text-white">
-              <div className="absolute top-3 left-3 flex items-center gap-2">
-                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-600/90 text-white text-[10px] font-bold uppercase tracking-wider animate-pulse">
-                  <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-                  Live Broadcast
-                </span>
-                <span className="px-2 py-0.5 rounded bg-black/60 backdrop-blur-md text-[10px] text-slate-300">
-                  HD 1080p
-                </span>
-              </div>
-
-              <div className="absolute top-3 right-3 text-[11px] font-medium text-slate-300 bg-black/60 px-2.5 py-1 rounded-md">
-                {selectedLiveClass.durationMinutes} mins session
-              </div>
-
-              <div className="flex flex-col items-center gap-3 text-center z-10 px-4">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-brand-500 to-accent-500 flex items-center justify-center text-2xl font-bold ring-4 ring-white/20">
-                    {selectedLiveClass.instructorName.slice(0, 1)}
-                  </div>
-                  <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-950" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-sm text-slate-100">
-                    {selectedLiveClass.instructorName}
-                  </h4>
-                  <p className="text-xs text-slate-400">Host • Presenting Course Audio & Screen</p>
-                </div>
-                <div className="flex items-center gap-1 h-4">
-                  <span className="w-1 h-3 bg-brand-400 rounded-full animate-bounce" />
-                  <span className="w-1 h-5 bg-brand-400 rounded-full animate-bounce [animation-delay:0.15s]" />
-                  <span className="w-1 h-2 bg-brand-400 rounded-full animate-bounce [animation-delay:0.3s]" />
-                  <span className="w-1 h-4 bg-brand-400 rounded-full animate-bounce [animation-delay:0.45s]" />
-                </div>
-              </div>
-
-              <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsMicMuted(!isMicMuted)}
-                    className={`p-2 rounded-lg text-xs transition-colors ${
-                      isMicMuted ? 'bg-rose-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white'
-                    }`}
-                    title={isMicMuted ? 'Unmute microphone' : 'Mute microphone'}
-                  >
-                    {isMicMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-                  </button>
-                  <button
-                    onClick={() => setIsVideoOff(!isVideoOff)}
-                    className={`p-2 rounded-lg text-xs transition-colors ${
-                      isVideoOff ? 'bg-rose-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white'
-                    }`}
-                    title={isVideoOff ? 'Start camera' : 'Stop camera'}
-                  >
-                    {isVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
-                  </button>
-                </div>
-
-                <div className="text-[11px] text-slate-300">
-                  Virtual Room ID:{' '}
-                  <span className="font-mono text-brand-300">
-                    {selectedLiveClass.id.toUpperCase()}
-                  </span>
-                </div>
-              </div>
+      <Modal
+        isOpen={!!selectedLiveClass}
+        onClose={() => setSelectedLiveClass(null)}
+        title={`Virtual Classroom: ${selectedLiveClass?.title || 'Live Stream Room'}`}
+        maxWidth="lg"
+      >
+        <div className="space-y-4">
+          <div className="relative bg-slate-950 rounded-2xl overflow-hidden aspect-video flex flex-col justify-between p-4 border border-slate-800">
+            {/* Top Bar */}
+            <div className="flex items-center justify-between z-10">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-600/90 text-white text-[11px] font-bold">
+                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                Live Broadcast
+              </span>
+              <span className="text-xs text-white/80 bg-black/40 px-2.5 py-1 rounded-full backdrop-blur-xs">
+                {selectedLiveClass?.instructorName || 'Lead Faculty'}
+              </span>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                <div>
-                  <span className="text-slate-400">Scheduled Time:</span>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200">
-                    {formatDate(selectedLiveClass.dateTime, 'MMMM dd, yyyy · h:mm a')}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-slate-400">Interactive Features:</span>
-                  <p className="font-semibold text-slate-800 dark:text-slate-200">
-                    Audio, Video, Screen Share & Live Q&A
-                  </p>
-                </div>
+            {/* Center Video Placeholder */}
+            <div className="flex flex-col items-center justify-center text-center space-y-2 z-10">
+              <div className="w-16 h-16 rounded-full bg-brand-600/30 border border-brand-500/40 flex items-center justify-center text-brand-300">
+                <Video className="w-8 h-8" />
               </div>
+              <p className="text-white font-semibold text-sm">
+                High-Definition Audio & Screen Sharing Active
+              </p>
+              <p className="text-xs text-slate-400">
+                Connected to encrypted WebRTC peer stream
+              </p>
+            </div>
 
-              <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex flex-wrap items-center justify-between gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  leftIcon={isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  onClick={handleCopyLink}
-                >
-                  {isCopied ? 'Link Copied!' : 'Copy Session Link'}
-                </Button>
+            {/* Bottom Stream Controls */}
+            <div className="flex items-center justify-center gap-3 z-10">
+              <button
+                onClick={() => setIsMicMuted(!isMicMuted)}
+                className={`p-2.5 rounded-full transition-colors ${
+                  isMicMuted ? 'bg-rose-600 text-white' : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+                title={isMicMuted ? 'Unmute Microphone' : 'Mute Microphone'}
+              >
+                {isMicMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
 
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setSelectedLiveClass(null)}
-                  >
-                    Dismiss
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
-                    onClick={handleLaunchMeeting}
-                  >
-                    Launch Fullscreen Room
-                  </Button>
-                </div>
-              </div>
+              <button
+                onClick={() => setIsVideoOff(!isVideoOff)}
+                className={`p-2.5 rounded-full transition-colors ${
+                  isVideoOff ? 'bg-rose-600 text-white' : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+                title={isVideoOff ? 'Enable Video' : 'Disable Video'}
+              >
+                {isVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+              </button>
             </div>
           </div>
-        </Modal>
-      )}
+
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+            <button
+              onClick={() => handleCopyLink(selectedLiveClass?.roomUrl || window.location.href)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-200 transition-colors"
+            >
+              {isCopied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+              <span>{isCopied ? 'Link Copied!' : 'Copy Session Link'}</span>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedLiveClass(null)}
+              >
+                Dismiss
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  window.open(selectedLiveClass?.roomUrl || '#', '_blank');
+                  setSelectedLiveClass(null);
+                }}
+              >
+                <ExternalLink className="w-4 h-4 mr-1.5" />
+                Launch Fullscreen Room
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
+
+export default AdminDashboard;
