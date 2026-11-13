@@ -9,16 +9,16 @@ export default {
     extend: {
       colors: {
         brand: {
-          50: '#ecfdf5',
-          100: '#d1fae5',
-          200: '#a7f3d0',
-          300: '#6ee7b7',
-          400: '#34d399',
-          500: '#10b981', // Emerald
-          600: '#059669',
-          700: '#047857',
-          800: '#065f46',
-          950: '#022c22',
+          50: '#F5F2FD',
+          100: '#ECE6FC',
+          200: '#D9CEFA',
+          300: '#BDAAF7',
+          400: '#9B7EF3',
+          500: '#7047EB', // Modern Purple #7047EB matching dashboard designs
+          600: '#5E34DB',
+          700: '#4C24C7',
+          800: '#3C18B3',
+          950: '#1A0640',
         },
         accent: {
           50: '#eff6ff',

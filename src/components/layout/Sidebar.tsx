@@ -11,8 +11,9 @@ import {
   BarChart3,
   ChevronLeft,
   ChevronRight,
-  BookOpenCheck,
+  Rocket,
 } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { useAuth } from '@/context/AuthContext';
 import { UserRole } from '@/types';
 
@@ -112,16 +113,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Brand Header */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-accent-600 text-white shadow-md shadow-brand-500/20 flex-shrink-0">
-              <BookOpenCheck className="w-5 h-5" />
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-[#7047EB] to-[#9B7EF3] text-white shadow-md shadow-purple-500/25 flex-shrink-0">
+              <Rocket className="w-5 h-5 text-amber-300" />
             </div>
             {!isCollapsed && (
               <div className="flex flex-col">
-                <span className="font-bold text-base tracking-tight bg-gradient-to-r from-brand-600 to-accent-600 bg-clip-text text-transparent">
-                  EduSphere
+                <span className="font-extrabold text-base tracking-tight text-[#7047EB] dark:text-purple-400">
+                  Schoooli
                 </span>
-                <span className="text-[10px] uppercase font-semibold tracking-wider text-slate-400">
-                  LMS Platform
+                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                  EduSphere LMS
                 </span>
               </div>
             )}
@@ -137,17 +138,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
           {visibleItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               onClick={() => setIsMobileOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group ${
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all group ${
                   isActive
-                    ? 'bg-brand-50 text-brand-700 dark:bg-brand-950/60 dark:text-brand-300 shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200'
+                    ? 'bg-[#7047EB] text-white shadow-sm shadow-[#7047EB]/25 font-bold'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800/80 dark:hover:text-slate-200'
                 } ${isCollapsed ? 'justify-center px-2' : ''}`
               }
               title={isCollapsed ? item.name : undefined}
@@ -160,6 +161,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ))}
         </nav>
 
+        {/* Pro Plan Upgrade Card matching Schoooli mock */}
+        {!isCollapsed && (
+          <div className="p-3 mx-3 mb-3 rounded-2xl bg-gradient-to-br from-[#7047EB] via-[#5F35DB] to-[#4D24C7] text-white p-3.5 shadow-lg shadow-purple-500/20 relative overflow-hidden">
+            <div className="flex items-start gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                <Rocket className="w-4 h-4 text-amber-300" />
+              </div>
+              <div>
+                <p className="text-xs font-bold leading-tight">
+                  You're on the Free plan.
+                </p>
+                <p className="text-[10px] text-purple-200 mt-0.5">
+                  Upgrade to go Pro
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => toast.info('Pro Plan: Unlimited classrooms, automated grading, priority analytics.')}
+              className="mt-3 w-full py-1.5 px-3 rounded-xl bg-white text-[#7047EB] hover:bg-purple-50 text-xs font-extrabold shadow-xs transition-colors text-center"
+            >
+              Upgrade
+            </button>
+          </div>
+        )}
+
         {/* User Card in Footer */}
         {user && (
           <div className="p-3 border-t border-slate-100 dark:border-slate-800">
@@ -171,14 +197,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <img
                 src={user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
                 alt={user.name}
-                className="w-9 h-9 rounded-lg object-cover ring-2 ring-brand-500/30 flex-shrink-0"
+                className="w-9 h-9 rounded-lg object-cover ring-2 ring-[#7047EB]/30 flex-shrink-0"
               />
               {!isCollapsed && (
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
                     {user.name}
                   </span>
-                  <span className="text-[10px] capitalize text-brand-600 dark:text-brand-400 font-medium">
+                  <span className="text-[10px] capitalize text-[#7047EB] dark:text-purple-400 font-semibold">
                     {user.role} Account
                   </span>
                 </div>
