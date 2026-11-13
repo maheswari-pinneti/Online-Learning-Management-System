@@ -37,7 +37,21 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const savedCourses = StorageService.get<Course[]>(STORAGE_KEYS.COURSES, []);
       const externalCourses = await CourseService.fetchExternalCourses();
 
-      if (savedCourses.length === 0) {
+      // Sanitize legacy cosmetic items if cached in localStorage
+      const sanitizedSaved = savedCourses.filter((c) => {
+        const isLegacyCosmetic =
+          c.id.startsWith('external-') &&
+          (c.title.toLowerCase().includes('mascara') ||
+            c.title.toLowerCase().includes('lipstick') ||
+            c.title.toLowerCase().includes('eyeshadow') ||
+            c.title.toLowerCase().includes('nail polish') ||
+            c.title.toLowerCase().includes('perfume') ||
+            c.category === 'Beauty' ||
+            c.category === 'Fragrances');
+        return !isLegacyCosmetic;
+      });
+
+      if (sanitizedSaved.length === 0) {
         // Initial setup: combine curated initial courses with external courses
         const combined = [...INITIAL_COURSES];
         externalCourses.forEach((ext) => {
@@ -47,8 +61,29 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
         syncCoursesWithStorage(combined);
       } else {
-        // Merge in any new external courses that haven't been deleted or added yet
-        const merged = [...savedCourses];
+        // Update existing external courses with latest enriched curriculum & add any new ones
+        const merged = sanitizedSaved.map((c) => {
+          if (c.id.startsWith('external-') && !c.isCustom) {
+            const matchingExt = externalCourses.find((ext) => ext.id === c.id);
+            if (matchingExt) {
+              return {
+                ...c,
+                title: matchingExt.title,
+                description: matchingExt.description,
+                thumbnail: matchingExt.thumbnail,
+                category: matchingExt.category,
+                duration: matchingExt.duration,
+                durationHours: matchingExt.durationHours,
+                level: matchingExt.level,
+                price: matchingExt.price,
+                lessons: matchingExt.lessons,
+                rating: matchingExt.rating,
+              };
+            }
+          }
+          return c;
+        });
+
         externalCourses.forEach((ext) => {
           if (!merged.some((c) => c.id === ext.id)) {
             merged.push(ext);
