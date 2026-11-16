@@ -11,6 +11,8 @@ import { StorageService, STORAGE_KEYS } from '@/services/storageService';
 import {
   INITIAL_ASSIGNMENTS,
   INITIAL_QUIZZES,
+  INITIAL_ASSIGNMENT_SUBMISSIONS,
+  INITIAL_QUIZ_SUBMISSIONS,
 } from '@/utils/mockData';
 import { useEnrollment } from './EnrollmentContext';
 import { useCourses } from './CourseContext';
@@ -49,11 +51,13 @@ export const LearningProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   });
 
   const [assignmentSubmissions, setAssignmentSubmissions] = useState<AssignmentSubmission[]>(() => {
-    return StorageService.get<AssignmentSubmission[]>(STORAGE_KEYS.ASSIGNMENT_SUBMISSIONS, []);
+    const stored = StorageService.get<AssignmentSubmission[]>(STORAGE_KEYS.ASSIGNMENT_SUBMISSIONS, INITIAL_ASSIGNMENT_SUBMISSIONS);
+    return stored && stored.length > 0 ? stored : INITIAL_ASSIGNMENT_SUBMISSIONS;
   });
 
   const [quizSubmissions, setQuizSubmissions] = useState<QuizSubmission[]>(() => {
-    return StorageService.get<QuizSubmission[]>(STORAGE_KEYS.QUIZ_SUBMISSIONS, []);
+    const stored = StorageService.get<QuizSubmission[]>(STORAGE_KEYS.QUIZ_SUBMISSIONS, INITIAL_QUIZ_SUBMISSIONS);
+    return stored && stored.length > 0 ? stored : INITIAL_QUIZ_SUBMISSIONS;
   });
 
   // Toggle lesson completed/pending in enrollment
