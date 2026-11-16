@@ -93,4 +93,24 @@ describe('Modules 7 & 8: Learning Progress & Assessments', () => {
       expect(failedSubmission.passed).toBe(false);
     });
   });
+
+  it('loads default student submissions ready for instructor assessment and grading', () => {
+    const { result } = renderHook(() => useLearning(), { wrapper: fullWrapper });
+
+    expect(result.current.assignmentSubmissions.length).toBeGreaterThan(0);
+    expect(result.current.quizSubmissions.length).toBeGreaterThan(0);
+
+    const pendingSub = result.current.assignmentSubmissions.find((s) => s.status === 'Submitted');
+    expect(pendingSub).toBeDefined();
+    if (pendingSub) {
+      act(() => {
+        result.current.gradeAssignment(pendingSub.id, 46, 'Well-structured solution with great tests.');
+      });
+
+      const gradedSub = result.current.assignmentSubmissions.find((s) => s.id === pendingSub.id);
+      expect(gradedSub?.status).toBe('Graded');
+      expect(gradedSub?.obtainedMarks).toBe(46);
+      expect(gradedSub?.feedback).toBe('Well-structured solution with great tests.');
+    }
+  });
 });

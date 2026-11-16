@@ -1,1162 +1,1258 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import {
-  Play,
-  Bookmark,
-  Star,
-  ChevronLeft,
   ChevronRight,
-  ChevronDown,
+  Search,
+  MessageSquare,
+  Bell,
+  Maximize2,
+  Minimize2,
+  Paperclip,
+  Send,
+  ExternalLink,
+  PhoneOff,
   Sparkles,
-  BookOpen,
-  LineChart as LineChartIcon,
-  FileCheck2,
-  UserCheck,
-  GraduationCap,
-  Check,
+  Play,
+  Calendar,
+  Volume2,
+  Shield,
+  Menu,
+  LogOut,
+  Edit3,
 } from 'lucide-react';
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-} from 'recharts';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/context/AuthContext';
-import { useCourses } from '@/context/CourseContext';
 import { useEnrollment } from '@/context/EnrollmentContext';
+import { useLearning } from '@/context/LearningContext';
 import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
 
 // -------------------------------------------------------------
-// CHART DATA: WEEKLY LEARNING HOURS SPLINE
+// VECTOR ILLUSTRATION: CYBER CAT AI COMPANION
 // -------------------------------------------------------------
-const WEEKLY_LEARNING_DATA = [
-  { day: 'mon', hours: 0, label: '0h' },
-  { day: 'tue', hours: 1.5, label: '1.5h' },
-  { day: 'wed', hours: 2.5, label: '2.5h' },
-  { day: 'thu', hours: 1.0, label: '1h' },
-  { day: 'fri', hours: 4.0, label: '4h' },
-  { day: 'sat', hours: 3.0, label: '3h' },
-  { day: 'sun', hours: 2.0, label: '2h' },
-];
+const CyberCatIllustration: React.FC<{ size?: number }> = ({ size = 130 }) => (
+  <div className="relative flex items-center justify-center select-none">
+    {/* Soft ambient radial purple aura */}
+    <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-purple-400/20 via-indigo-300/30 to-purple-500/25 blur-xl pointer-events-none transform scale-125" />
 
-const MONTHLY_LEARNING_DATA = [
-  { day: 'W1', hours: 8.5, label: '8.5h' },
-  { day: 'W2', hours: 12.0, label: '12h' },
-  { day: 'W3', hours: 14.5, label: '14.5h' },
-  { day: 'W4', hours: 10.0, label: '10h' },
-];
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 160 160"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="relative z-10 drop-shadow-xl"
+    >
+      <defs>
+        {/* Helmet and body gradients */}
+        <radialGradient id="cyberHead" cx="50%" cy="35%" r="65%">
+          <stop offset="0%" stopColor="#2D283E" />
+          <stop offset="60%" stopColor="#1B1728" />
+          <stop offset="100%" stopColor="#0F0C18" />
+        </radialGradient>
 
-// -------------------------------------------------------------
-// COURSE MOCK DATA (EXACT MATCH TO USER SCREENSHOT)
-// -------------------------------------------------------------
-interface MyCourseItem {
-  id: string;
-  title: string;
-  tag: string;
-  tagColor: 'blue' | 'rose' | 'emerald';
-  rating: number;
-  instructorName: string;
-  instructorRole: string;
-  instructorAvatar: string;
-  thumbnailType: 'react' | 'java' | 'fitness';
-  progressPercent: number;
-}
+        <linearGradient id="cyberHoodie" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#252136" />
+          <stop offset="100%" stopColor="#13101E" />
+        </linearGradient>
 
-const MY_COURSES: MyCourseItem[] = [
-  {
-    id: 'course-react-1',
-    title: 'Learn React From Scratch,Build Stunning Uls With Ease,And Create Real-World Projects.',
-    tag: 'FRONTEND',
-    tagColor: 'blue',
-    rating: 4.0,
-    instructorName: 'Peter Anderson',
-    instructorRole: 'Software Developer',
-    instructorAvatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
-    thumbnailType: 'react',
-    progressPercent: 68,
-  },
-  {
-    id: 'course-java-1',
-    title: 'Unlock Java Backend Power,Build Secure Restful APIs,And Deploy Your First Project.',
-    tag: 'BACKEND',
-    tagColor: 'rose',
-    rating: 4.0,
-    instructorName: 'Max Ritz',
-    instructorRole: 'Software Developer',
-    instructorAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
-    thumbnailType: 'java',
-    progressPercent: 42,
-  },
-  {
-    id: 'course-fitness-1',
-    title: 'Get Fit At Home Fast, No Equipment Needed, 30-Day Body Challenge, Stay Healthy & Active.',
-    tag: 'HEALTH & FITNESS',
-    tagColor: 'emerald',
-    rating: 4.0,
-    instructorName: 'Ashley Kruger',
-    instructorRole: 'Yoga Instructor',
-    instructorAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80',
-    thumbnailType: 'fitness',
-    progressPercent: 85,
-  },
-];
+        <linearGradient id="visorGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#0B0914" />
+          <stop offset="100%" stopColor="#171326" />
+        </linearGradient>
 
-interface PopularCourseItem {
-  id: string;
-  title: string;
-  tag: string;
-  tagColor: 'amber' | 'orange' | 'purple';
-  rating: number;
-  price: number;
-  thumbnailType: 'design' | 'productivity' | 'music';
-}
+        <linearGradient id="neonCyan" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#67E8F9" />
+          <stop offset="100%" stopColor="#06B6D4" />
+        </linearGradient>
 
-const POPULAR_COURSES: PopularCourseItem[] = [
-  {
-    id: 'course-design-1',
-    title: 'Master UI By Creating, Design With Fun Projects, Explore Layouts & Colors, Bring Ideas To Life.',
-    tag: 'DESIGN',
-    tagColor: 'amber',
-    rating: 4.0,
-    price: 150,
-    thumbnailType: 'design',
-  },
-  {
-    id: 'course-prod-1',
-    title: 'Double Your Output Fast, Build Smart Daily Habits, Manage Time Like Pros, Stay Focused For Life.',
-    tag: 'PRODUCTIVITY',
-    tagColor: 'orange',
-    rating: 4.0,
-    price: 150,
-    thumbnailType: 'productivity',
-  },
-  {
-    id: 'course-music-1',
-    title: 'Train With Real Artists, Master Your Singing Voice, Perform On Any Stage, Grow From Zero To Pro',
-    tag: 'MUSIC',
-    tagColor: 'purple',
-    rating: 4.0,
-    price: 150,
-    thumbnailType: 'music',
-  },
-];
+        <linearGradient id="neonPurple" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#C084FC" />
+          <stop offset="100%" stopColor="#7E22CE" />
+        </linearGradient>
 
-// -------------------------------------------------------------
-// INLINE VECTOR GRAPHICS & 3D ILLUSTRATIONS
-// -------------------------------------------------------------
+        {/* Glow filter */}
+        <filter id="eyeGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="2.5" result="blur" />
+          <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+      </defs>
 
-/** 3D Student Character sitting on books reading a book (matching screenshot) */
-const Student3DIllustration: React.FC = () => (
-  <svg
-    viewBox="0 0 280 260"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className="w-48 sm:w-56 h-auto drop-shadow-2xl select-none"
-  >
-    <defs>
-      {/* Gradients for Books */}
-      <linearGradient id="bookYellow" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#FCD34D" />
-        <stop offset="100%" stopColor="#F59E0B" />
-      </linearGradient>
-      <linearGradient id="bookTeal" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#2DD4BF" />
-        <stop offset="100%" stopColor="#0D9488" />
-      </linearGradient>
-      <linearGradient id="bookCoral" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#FB7185" />
-        <stop offset="100%" stopColor="#E11D48" />
-      </linearGradient>
-      <linearGradient id="bookBlue" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#60A5FA" />
-        <stop offset="100%" stopColor="#2563EB" />
-      </linearGradient>
+      {/* Cyber Ears */}
+      {/* Left Ear (Viewer's left) with purple inner accent */}
+      <path
+        d="M44 65 L28 22 C32 20 48 24 60 48 Z"
+        fill="#1C182A"
+        stroke="#3F3759"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M42 60 L33 30 C36 28 47 32 54 48 Z"
+        fill="url(#neonPurple)"
+        opacity="0.85"
+      />
 
-      {/* Gradients for Student Hoodie */}
-      <linearGradient id="hoodieGrad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#818CF8" />
-        <stop offset="60%" stopColor="#4F46E5" />
-        <stop offset="100%" stopColor="#3730A3" />
-      </linearGradient>
-      {/* Jeans */}
-      <linearGradient id="jeansGrad" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="#1E293B" />
-        <stop offset="100%" stopColor="#0F172A" />
-      </linearGradient>
-      {/* Skin */}
-      <linearGradient id="skinGrad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#FED7AA" />
-        <stop offset="100%" stopColor="#FDBA74" />
-      </linearGradient>
-      {/* Hair */}
-      <linearGradient id="hairGrad" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#334155" />
-        <stop offset="100%" stopColor="#1E293B" />
-      </linearGradient>
-    </defs>
+      {/* Right Ear (Viewer's right) with Microsoft 4-Square Cyber Badge */}
+      <path
+        d="M116 65 L132 22 C128 20 112 24 100 48 Z"
+        fill="#1C182A"
+        stroke="#3F3759"
+        strokeWidth="1.5"
+      />
+      <path
+        d="M118 60 L127 30 C124 28 113 32 106 48 Z"
+        fill="url(#neonPurple)"
+        opacity="0.85"
+      />
 
-    {/* Stack of books on the ground (base) */}
-    {/* Book 1 - Teal Base */}
-    <rect x="25" y="215" width="105" height="18" rx="4" fill="url(#bookTeal)" />
-    <path d="M125 218H130V230H125Z" fill="#F8FAFC" />
-    <rect x="200" y="215" width="60" height="18" rx="4" fill="url(#bookTeal)" />
+      {/* Microsoft 4-square mini emblem on top of right ear */}
+      <g transform="translate(108, 32) scale(0.65)">
+        <rect x="0" y="0" width="7" height="7" rx="1" fill="#F25022" />
+        <rect x="9" y="0" width="7" height="7" rx="1" fill="#7FBA00" />
+        <rect x="0" y="9" width="7" height="7" rx="1" fill="#00A4EF" />
+        <rect x="9" y="9" width="7" height="7" rx="1" fill="#FFB900" />
+      </g>
 
-    {/* Book 2 - Yellow Middle */}
-    <rect x="35" y="198" width="95" height="17" rx="3" fill="url(#bookYellow)" />
-    <path d="M125 201H129V212H125Z" fill="#F8FAFC" />
-    <rect x="205" y="198" width="55" height="17" rx="3" fill="url(#bookYellow)" />
+      {/* Torso / Hoodie */}
+      <path
+        d="M42 122 C42 105 118 105 118 122 L128 160 L32 160 Z"
+        fill="url(#cyberHoodie)"
+      />
+      <path
+        d="M60 116 L80 138 L100 116"
+        stroke="#3E3859"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        fill="none"
+      />
 
-    {/* Book 3 - Coral Top */}
-    <rect x="42" y="182" width="85" height="16" rx="3" fill="url(#bookCoral)" />
-    <path d="M122 185H126V195H122Z" fill="#F8FAFC" />
+      {/* Cyber Security Shield Emblem on chest */}
+      <g transform="translate(80, 136)">
+        <path
+          d="M0 -10 L10 -5 L10 4 C10 10 0 15 0 15 C0 15 -10 10 -10 4 L-10 -5 Z"
+          fill="#1E293B"
+          stroke="#38BDF8"
+          strokeWidth="1.8"
+        />
+        {/* Shield lock / keyhole */}
+        <path
+          d="M-3 -1 C-3 -3 3 -3 3 -1 L3 2 L-3 2 Z"
+          fill="#38BDF8"
+        />
+        <rect x="-4" y="2" width="8" height="6" rx="1.5" fill="#38BDF8" />
+        <circle cx="0" cy="5" r="1.2" fill="#0F172A" />
+      </g>
 
-    {/* Book Stack on right side */}
-    <rect x="210" y="180" width="50" height="18" rx="3" fill="url(#bookCoral)" />
-    <rect x="215" y="162" width="45" height="18" rx="3" fill="url(#bookBlue)" />
+      {/* Head Capsule */}
+      <rect
+        x="36"
+        y="42"
+        width="88"
+        height="76"
+        rx="38"
+        fill="url(#cyberHead)"
+        stroke="#423B5D"
+        strokeWidth="2"
+      />
 
-    {/* Student Legs (Cross-legged / sitting) */}
-    <ellipse cx="140" cy="224" rx="48" ry="14" fill="#000000" fillOpacity="0.25" />
-    {/* Right Leg */}
-    <path
-      d="M135 178 C155 185 185 195 175 220 C165 224 140 220 130 205 Z"
-      fill="url(#jeansGrad)"
-    />
-    {/* Left Leg */}
-    <path
-      d="M125 178 C105 185 75 195 85 220 C95 224 120 220 130 205 Z"
-      fill="url(#jeansGrad)"
-    />
-    {/* Shoes */}
-    <ellipse cx="90" cy="222" rx="14" ry="7" fill="#E2E8F0" />
-    <ellipse cx="170" cy="222" rx="14" ry="7" fill="#E2E8F0" />
+      {/* Front Face Visor (Black curved screen) */}
+      <rect
+        x="44"
+        y="52"
+        width="72"
+        height="56"
+        rx="26"
+        fill="url(#visorGrad)"
+        stroke="#1E1930"
+        strokeWidth="1.5"
+      />
 
-    {/* Torso / Purple Hoodie */}
-    <path
-      d="M106 115 C106 100 154 100 154 115 L160 185 C160 192 100 192 100 185 Z"
-      fill="url(#hoodieGrad)"
-    />
+      {/* Glowing Cyan Eyes (Digital Cat Visor Expression) */}
+      {/* Left Eye */}
+      <rect
+        x="55"
+        y="68"
+        width="16"
+        height="18"
+        rx="7"
+        fill="url(#neonCyan)"
+        filter="url(#eyeGlow)"
+      />
+      <circle cx="60" cy="73" r="2.5" fill="#FFFFFF" />
 
-    {/* Head & Neck */}
-    <rect x="123" y="90" width="14" height="14" rx="4" fill="url(#skinGrad)" />
-    <ellipse cx="130" cy="74" rx="20" ry="22" fill="url(#skinGrad)" />
+      {/* Right Eye */}
+      <rect
+        x="89"
+        y="68"
+        width="16"
+        height="18"
+        rx="7"
+        fill="url(#neonCyan)"
+        filter="url(#eyeGlow)"
+      />
+      <circle cx="94" cy="73" r="2.5" fill="#FFFFFF" />
 
-    {/* Hair (Modern 3D style) */}
-    <path
-      d="M110 68 C110 48 150 48 150 68 C145 60 138 56 130 56 C122 56 115 62 110 68 Z"
-      fill="url(#hairGrad)"
-    />
-    <path
-      d="M115 54 C120 42 142 42 146 54 C138 46 126 46 115 54 Z"
-      fill="#475569"
-    />
+      {/* Whiskers / Cheek sensors */}
+      <line x1="42" y1="74" x2="48" y2="76" stroke="#4C4368" strokeWidth="1.8" strokeLinecap="round" />
+      <line x1="42" y1="82" x2="48" y2="80" stroke="#4C4368" strokeWidth="1.8" strokeLinecap="round" />
+      <line x1="112" y1="76" x2="118" y2="74" stroke="#4C4368" strokeWidth="1.8" strokeLinecap="round" />
+      <line x1="112" y1="80" x2="118" y2="82" stroke="#4C4368" strokeWidth="1.8" strokeLinecap="round" />
 
-    {/* Facial features */}
-    <ellipse cx="123" cy="73" rx="2.5" ry="3.5" fill="#1E293B" />
-    <ellipse cx="137" cy="73" rx="2.5" ry="3.5" fill="#1E293B" />
-    <path d="M121 68 Q124 66 127 68" stroke="#1E293B" strokeWidth="1.2" strokeLinecap="round" />
-    <path d="M133 68 Q136 66 139 68" stroke="#1E293B" strokeWidth="1.2" strokeLinecap="round" />
-    <path d="M127 82 Q130 85 133 82" stroke="#E11D48" strokeWidth="1.5" strokeLinecap="round" />
-
-    {/* Open Book in Hands */}
-    {/* Left Page */}
-    <path
-      d="M130 148 L96 135 C94 134 94 130 96 128 L128 116 C129 115 131 116 131 118 L130 148 Z"
-      fill="#FFFFFF"
-    />
-    {/* Right Page */}
-    <path
-      d="M130 148 L164 135 C166 134 166 130 164 128 L132 116 C131 115 129 116 129 118 L130 148 Z"
-      fill="#F1F5F9"
-    />
-    {/* Book Cover / Spine */}
-    <path d="M130 148 L130 152" stroke="#2563EB" strokeWidth="3" strokeLinecap="round" />
-    {/* Book Spine Shadow */}
-    <line x1="130" y1="116" x2="130" y2="148" stroke="#CBD5E1" strokeWidth="1.5" />
-    {/* Text lines on book */}
-    <line x1="102" y1="126" x2="124" y2="120" stroke="#94A3B8" strokeWidth="1" strokeLinecap="round" />
-    <line x1="103" y1="132" x2="125" y2="126" stroke="#94A3B8" strokeWidth="1" strokeLinecap="round" />
-    <line x1="104" y1="138" x2="122" y2="132" stroke="#94A3B8" strokeWidth="1" strokeLinecap="round" />
-    <line x1="136" y1="120" x2="158" y2="126" stroke="#94A3B8" strokeWidth="1" strokeLinecap="round" />
-    <line x1="135" y1="126" x2="157" y2="132" stroke="#94A3B8" strokeWidth="1" strokeLinecap="round" />
-    <line x1="137" y1="132" x2="155" y2="138" stroke="#94A3B8" strokeWidth="1" strokeLinecap="round" />
-
-    {/* Arms holding the book */}
-    <path
-      d="M106 130 C95 140 98 152 112 148 L116 142"
-      stroke="url(#hoodieGrad)"
-      strokeWidth="10"
-      strokeLinecap="round"
-    />
-    <circle cx="112" cy="146" r="5" fill="url(#skinGrad)" />
-
-    <path
-      d="M154 130 C165 140 162 152 148 148 L144 142"
-      stroke="url(#hoodieGrad)"
-      strokeWidth="10"
-      strokeLinecap="round"
-    />
-    <circle cx="148" cy="146" r="5" fill="url(#skinGrad)" />
-  </svg>
-);
-
-/** 3D Megaphone Illustration with Sound Waves */
-const Megaphone3DIllustration: React.FC = () => (
-  <svg
-    viewBox="0 0 160 140"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-    className="w-24 sm:w-28 h-auto drop-shadow-xl select-none"
-  >
-    <defs>
-      <linearGradient id="megaPurple" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#A855F7" />
-        <stop offset="50%" stopColor="#7E22CE" />
-        <stop offset="100%" stopColor="#581C87" />
-      </linearGradient>
-      <linearGradient id="megaYellow" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#FDE047" />
-        <stop offset="100%" stopColor="#EAB308" />
-      </linearGradient>
-      <linearGradient id="megaGray" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#E2E8F0" />
-        <stop offset="100%" stopColor="#94A3B8" />
-      </linearGradient>
-    </defs>
-
-    {/* Sound waves / ripples */}
-    <path
-      d="M125 45 C132 55 132 75 125 85"
-      stroke="#A855F7"
-      strokeWidth="4"
-      strokeLinecap="round"
-      opacity="0.8"
-    />
-    <path
-      d="M138 35 C150 50 150 80 138 95"
-      stroke="#D8B4FE"
-      strokeWidth="4"
-      strokeLinecap="round"
-      opacity="0.6"
-    />
-    <path
-      d="M148 25 C164 45 164 85 148 105"
-      stroke="#E9D5FF"
-      strokeWidth="3.5"
-      strokeLinecap="round"
-      opacity="0.4"
-    />
-
-    {/* Megaphone Body */}
-    {/* Handle */}
-    <rect
-      x="35"
-      y="80"
-      width="14"
-      height="35"
-      rx="7"
-      transform="rotate(25 35 80)"
-      fill="url(#megaYellow)"
-    />
-    {/* Body cone */}
-    <path
-      d="M48 68 L105 38 C108 36 112 38 112 42 L112 92 C112 96 108 98 105 96 L48 76 C44 74 44 70 48 68 Z"
-      fill="url(#megaPurple)"
-    />
-    {/* Yellow Horn Rim (Ellipse opening) */}
-    <ellipse cx="112" cy="67" rx="8" ry="28" fill="url(#megaYellow)" />
-    <ellipse cx="112" cy="67" rx="5" ry="24" fill="#CA8A04" />
-
-    {/* Back Cap (Handle base) */}
-    <ellipse cx="46" cy="72" rx="6" ry="10" fill="url(#megaGray)" />
-    <circle cx="42" cy="72" r="3" fill="#64748B" />
-  </svg>
+      {/* Cute nose & mouth line */}
+      <polygon points="78,85 82,85 80,88" fill="#38BDF8" opacity="0.8" />
+    </svg>
+  </div>
 );
 
 // -------------------------------------------------------------
-// CIRCULAR PROGRESS COMPONENT
+// VECTOR ILLUSTRATION: YOUR CIRCLE CLASSROOM COLLABORATION
 // -------------------------------------------------------------
-interface CircularMetricProps {
-  valueText: string;
-  subText?: string;
-  percentage: number;
-  label: string;
-}
+const YourCircleIllustration: React.FC = () => (
+  <div className="relative w-full max-w-[280px] h-[140px] flex items-center justify-center select-none overflow-hidden rounded-2xl">
+    <svg
+      viewBox="0 0 320 180"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="w-full h-full object-contain"
+    >
+      <defs>
+        {/* Soft floor shadow */}
+        <radialGradient id="floorGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#F1F5F9" stopOpacity="0.8" />
+          <stop offset="100%" stopColor="#F8FAFC" stopOpacity="0.0" />
+        </radialGradient>
 
-const CircularMetricCard: React.FC<CircularMetricProps> = ({
-  valueText,
-  subText,
-  percentage,
-  label,
-}) => {
-  const radius = 22;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+        {/* Pod 1: Soft Mint Table */}
+        <linearGradient id="podMint" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#E6FFFA" />
+          <stop offset="100%" stopColor="#B2F5EA" />
+        </linearGradient>
 
-  return (
-    <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-100 dark:border-slate-800/80 shadow-xs hover:shadow-md transition-all flex items-center gap-3.5">
-      <div className="relative w-14 h-14 flex-shrink-0 flex items-center justify-center">
-        <svg className="w-14 h-14 -rotate-90 transform" viewBox="0 0 56 56">
-          {/* Background circle */}
-          <circle
-            cx="28"
-            cy="28"
-            r={radius}
-            stroke="#EDE9FE"
-            strokeWidth="4.5"
-            fill="transparent"
-            className="dark:stroke-slate-800"
-          />
-          {/* Foreground progress circle */}
-          <circle
-            cx="28"
-            cy="28"
-            r={radius}
-            stroke="#7047EB"
-            strokeWidth="4.5"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round"
-            fill="transparent"
-            className="transition-all duration-700 ease-out"
-          />
-        </svg>
+        {/* Pod 2: Soft Peach Table */}
+        <linearGradient id="podPeach" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#FFFAF0" />
+          <stop offset="100%" stopColor="#FEEBC8" />
+        </linearGradient>
 
-        {/* Text inside circle */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          <span className="text-[12px] font-bold text-slate-800 dark:text-slate-100 leading-none">
-            {valueText}
-          </span>
-          {subText && (
-            <span className="text-[9px] font-semibold text-slate-400 leading-none mt-0.5">
-              {subText}
-            </span>
-          )}
-        </div>
-      </div>
+        {/* Pod 3: Soft Lilac Table */}
+        <linearGradient id="podLilac" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#FAF5FF" />
+          <stop offset="100%" stopColor="#E9D8FD" />
+        </linearGradient>
 
-      <div className="min-w-0">
-        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 leading-snug">
-          {label}
-        </p>
-      </div>
-    </div>
-  );
-};
+        {/* Monstera leaf gradient */}
+        <linearGradient id="leafGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#34D399" />
+          <stop offset="100%" stopColor="#059669" />
+        </linearGradient>
+      </defs>
+
+      {/* Floor Island Base */}
+      <ellipse cx="160" cy="100" rx="150" ry="70" fill="url(#floorGrad)" />
+
+      {/* ======================================================= */}
+      {/* Potted Plant 1 (Left - Monstera / Potted Fiddle Leaf)   */}
+      {/* ======================================================= */}
+      <g transform="translate(45, 90)">
+        {/* Pot */}
+        <ellipse cx="15" cy="40" rx="14" ry="7" fill="#E2E8F0" />
+        <rect x="3" y="24" width="24" height="16" rx="4" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
+        {/* Soil */}
+        <ellipse cx="15" cy="24" rx="12" ry="5" fill="#78350F" />
+        {/* Big Monstera Leaves */}
+        <path d="M15 22 C10 8 0 8 2 18 C3 22 10 23 15 22 Z" fill="url(#leafGrad)" />
+        <path d="M15 22 C20 4 32 6 28 17 C26 21 20 23 15 22 Z" fill="url(#leafGrad)" />
+        <path d="M15 22 C14 2 22 -4 20 10 C19 15 16 19 15 22 Z" fill="#10B981" />
+      </g>
+
+      {/* ======================================================= */}
+      {/* Table Pod 1: Top Center (Students in Lilac Circle)      */}
+      {/* ======================================================= */}
+      <g transform="translate(145, 20)">
+        {/* Round Pod Table */}
+        <ellipse cx="35" cy="35" rx="36" ry="24" fill="url(#podLilac)" stroke="#D6BCFA" strokeWidth="1.5" />
+        <ellipse cx="35" cy="35" rx="14" ry="9" fill="#FFFFFF" />
+
+        {/* Student 1 (Top left) */}
+        <ellipse cx="15" cy="18" rx="8" ry="8" fill="#4338CA" />
+        <ellipse cx="15" cy="12" rx="5" ry="5" fill="#FED7AA" />
+        {/* Mini Laptop */}
+        <rect x="18" y="22" width="9" height="6" rx="1" fill="#334155" />
+
+        {/* Student 2 (Top right) */}
+        <ellipse cx="55" cy="18" rx="8" ry="8" fill="#7C3AED" />
+        <ellipse cx="55" cy="12" rx="5" ry="5" fill="#FBCFE8" />
+        {/* Mini Laptop */}
+        <rect x="44" y="22" width="9" height="6" rx="1" fill="#334155" />
+
+        {/* Student 3 (Bottom) */}
+        <ellipse cx="35" cy="52" rx="8" ry="8" fill="#2563EB" />
+        <ellipse cx="35" cy="58" rx="5" ry="5" fill="#FDE68A" />
+      </g>
+
+      {/* ======================================================= */}
+      {/* Table Pod 2: Bottom Left (Students in Peach Pod)        */}
+      {/* ======================================================= */}
+      <g transform="translate(95, 80)">
+        {/* Round Pod Table */}
+        <ellipse cx="35" cy="35" rx="34" ry="22" fill="url(#podPeach)" stroke="#FBD38D" strokeWidth="1.5" />
+        <ellipse cx="35" cy="35" rx="13" ry="8" fill="#FFFFFF" />
+
+        {/* Student 1 (Left) */}
+        <ellipse cx="15" cy="32" rx="8" ry="8" fill="#9333EA" />
+        <ellipse cx="10" cy="30" rx="5" ry="5" fill="#FED7AA" />
+        <rect x="20" y="30" width="8" height="5" rx="1" fill="#475569" />
+
+        {/* Student 2 (Bottom) */}
+        <ellipse cx="40" cy="52" rx="8" ry="8" fill="#0D9488" />
+        <ellipse cx="40" cy="58" rx="5" ry="5" fill="#FDE68A" />
+
+        {/* Student 3 (Right) */}
+        <ellipse cx="56" cy="32" rx="8" ry="8" fill="#E11D48" />
+        <ellipse cx="61" cy="30" rx="5" ry="5" fill="#FECDD3" />
+      </g>
+
+      {/* ======================================================= */}
+      {/* Table Pod 3: Bottom Right (Students in Mint Pod)        */}
+      {/* ======================================================= */}
+      <g transform="translate(195, 75)">
+        {/* Round Pod Table */}
+        <ellipse cx="35" cy="35" rx="34" ry="22" fill="url(#podMint)" stroke="#81E6D9" strokeWidth="1.5" />
+        <ellipse cx="35" cy="35" rx="13" ry="8" fill="#FFFFFF" />
+
+        {/* Student 1 */}
+        <ellipse cx="18" cy="22" rx="8" ry="8" fill="#059669" />
+        <ellipse cx="18" cy="16" rx="5" ry="5" fill="#FDE68A" />
+        <rect x="22" y="26" width="8" height="5" rx="1" fill="#1E293B" />
+
+        {/* Student 2 */}
+        <ellipse cx="54" cy="24" rx="8" ry="8" fill="#2563EB" />
+        <ellipse cx="54" cy="18" rx="5" ry="5" fill="#FED7AA" />
+
+        {/* Student 3 (Bottom) */}
+        <ellipse cx="36" cy="52" rx="8" ry="8" fill="#D97706" />
+        <ellipse cx="36" cy="58" rx="5" ry="5" fill="#FBCFE8" />
+      </g>
+
+      {/* ======================================================= */}
+      {/* Potted Plant 2 (Right - Large Monstera)                 */}
+      {/* ======================================================= */}
+      <g transform="translate(255, 60)">
+        <ellipse cx="14" cy="42" rx="14" ry="7" fill="#E2E8F0" />
+        <rect x="2" y="26" width="24" height="16" rx="4" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="1" />
+        <ellipse cx="14" cy="26" rx="12" ry="5" fill="#78350F" />
+        <path d="M14 24 C10 8 0 10 2 20 C4 24 10 25 14 24 Z" fill="url(#leafGrad)" />
+        <path d="M14 24 C20 6 30 8 28 20 C26 24 20 25 14 24 Z" fill="url(#leafGrad)" />
+        <path d="M14 24 C14 2 22 -2 20 12 C18 17 15 22 14 24 Z" fill="#047857" />
+      </g>
+    </svg>
+  </div>
+);
 
 // -------------------------------------------------------------
 // MAIN COMPONENT: STUDENT DASHBOARD
 // -------------------------------------------------------------
 export const StudentDashboard: React.FC = () => {
-  const { user } = useAuth();
-  const { courses } = useCourses();
-  const { enrollStudent, isStudentEnrolled } = useEnrollment();
+  const { user, logout, updateProfile } = useAuth();
+  const { enrollments, getStudentEnrollments } = useEnrollment();
+  const { quizSubmissions, assignmentSubmissions } = useLearning();
   const navigate = useNavigate();
 
-  // Bookmarked course items
-  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>(['course-react-1', 'course-fitness-1']);
+  // Synced enrollments for active student
+  const myEnrollments = useMemo(() => {
+    if (!user) return [];
+    return getStudentEnrollments(user.id);
+  }, [user, enrollments, getStudentEnrollments]);
 
-  // Statistics chart timeframe & tab
-  const [statsTimeframe, setStatsTimeframe] = useState<'Weekly' | 'Monthly'>('Weekly');
-  const [statsTab, setStatsTab] = useState<'hours' | 'courses'>('hours');
+  // Dynamic progress synchronization (defaults to 17% matching spec)
+  const lessonProgress = useMemo(() => {
+    if (myEnrollments.length === 0) return 17;
+    const sum = myEnrollments.reduce((acc, e) => acc + (e.progressPercentage || 0), 0);
+    const avg = Math.round(sum / myEnrollments.length);
+    return avg > 0 ? avg : 17;
+  }, [myEnrollments]);
 
-  // Carousel page state for "My Courses"
-  const [myCoursesPage, setMyCoursesPage] = useState(0);
+  // Dynamic activities completion percentage (defaults to 0% matching spec)
+  const activityProgress = useMemo(() => {
+    const studentSubmissions = [
+      ...quizSubmissions.filter((q) => q.studentId === user?.id),
+      ...assignmentSubmissions.filter((a) => a.studentId === user?.id),
+    ];
+    return studentSubmissions.length > 0 ? Math.min(100, studentSubmissions.length * 25) : 0;
+  }, [quizSubmissions, assignmentSubmissions, user]);
 
-  // Modals
-  const [isPremiumModalOpen, setIsPremiumModalOpen] = useState(false);
-  const [previewCourse, setPreviewCourse] = useState<MyCourseItem | PopularCourseItem | null>(null);
+  // Modals & Drawers
+  const [isLessonModalOpen, setIsLessonModalOpen] = useState(false);
+  const [isEventModalOpen, setIsEventModalOpen] = useState(false);
+  const [isFellowCallOpen, setIsFellowCallOpen] = useState(false);
+  const [isPracticeModalOpen, setIsPracticeModalOpen] = useState(false);
+  const [practiceType, setPracticeType] = useState<string>('Interview Practice');
+  const [isFellowExpanded, setIsFellowExpanded] = useState(false);
 
-  // Toggle Bookmark
-  const toggleBookmark = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setBookmarkedIds((prev) => {
-      const exists = prev.includes(id);
-      const next = exists ? prev.filter((item) => item !== id) : [...prev, id];
-      toast.success(exists ? 'Removed from saved courses' : 'Course bookmarked to your list!');
-      return next;
-    });
+  // Profile Update & Dropdown State
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [editName, setEditName] = useState(user?.name || 'Maheswari');
+  const [editEmail, setEditEmail] = useState(user?.email || 'student@edusphere.com');
+  const [editBio, setEditBio] = useState(
+    user?.bio || 'Passionate computer science learner pursuing cloud and AI cybersecurity mastery.'
+  );
+  const [editAvatar, setEditAvatar] = useState(
+    user?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
+  );
+
+  const handleLogout = () => {
+    logout();
+    toast.success('Signed out successfully. See you soon!');
+    navigate('/auth/login');
   };
 
-  // Courses data
-  const filteredMyCourses = MY_COURSES;
-  const filteredPopularCourses = POPULAR_COURSES;
-
-  // Handle Get Course
-  const handleGetCourse = (popCourse: PopularCourseItem) => {
-    // Check if matching course exists in catalog to enroll
-    const matching = courses.find((c) => c.id === popCourse.id || c.title.toLowerCase().includes(popCourse.tag.toLowerCase())) || courses[0];
-    if (matching && user) {
-      if (!isStudentEnrolled(user.id, matching.id)) {
-        enrollStudent(user.id, matching.id);
-      }
+  const handleProfileSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) {
+      toast.error('Student name cannot be empty.');
+      return;
     }
-    toast.success(`Successfully enrolled in "${popCourse.title.slice(0, 32)}..."! Happy learning.`);
+    updateProfile({
+      name: editName.trim(),
+      email: editEmail.trim(),
+      bio: editBio.trim(),
+      avatarUrl: editAvatar,
+    });
+    setIsProfileModalOpen(false);
+    toast.success(`Profile updated! Welcome, ${editName.trim()}.`);
   };
+
+  // AI Fellow Chat Input & History
+  const [chatInput, setChatInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<
+    Array<{ sender: 'cat' | 'user'; text: string; time: string }>
+  >([
+    {
+      sender: 'cat',
+      text: "Meow! Ready to secure the cloud? I'm your AI fellow, Cyber Cat. Ask me anything or try a quick quiz!",
+      time: 'Just now',
+    },
+  ]);
+
+  // Handle Fellow Quick Prompts
+  const handleQuickPrompt = (promptText: string) => {
+    setPracticeType(promptText);
+    if (promptText.includes('Interview')) {
+      setIsPracticeModalOpen(true);
+    } else if (promptText.includes('Quiz')) {
+      setIsPracticeModalOpen(true);
+    } else {
+      // Recap prompt
+      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setChatMessages((prev) => [
+        ...prev,
+        { sender: 'user', text: promptText, time: now },
+        {
+          sender: 'cat',
+          text: "Here is your recap: In 'Inside the Breach - They're in the cloud', you learned AWS IAM privilege escalation patterns and automated GuardDuty detections. Next step: complete Lab 3 on IAM role trust policies!",
+          time: now,
+        },
+      ]);
+      toast.success('Cyber Cat prepared your lesson recap!');
+    }
+  };
+
+  // Handle Fellow Chat Submit
+  const handleSendChat = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!chatInput.trim()) return;
+
+    const userText = chatInput.trim();
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    setChatMessages((prev) => [...prev, { sender: 'user', text: userText, time: now }]);
+    setChatInput('');
+
+    // Simulated Cyber Cat AI Response
+    setTimeout(() => {
+      let reply = "Paws up! In cloud breach forensics, always inspect CloudTrail logs for 'AssumeRole' API calls.";
+      if (userText.toLowerCase().includes('quiz') || userText.toLowerCase().includes('practice')) {
+        reply = "Let's test your skills! What HTTP status code does an unauthorized AWS S3 request return? (Hint: 403 Forbidden).";
+      } else if (userText.toLowerCase().includes('hello') || userText.toLowerCase().includes('hi')) {
+        reply = "Hello Maheswari! Cyber Cat reporting for duty. What cyber challenge are we tackling today?";
+      }
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          sender: 'cat',
+          text: reply,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    }, 600);
+  };
+
+  const outletContext = useOutletContext<{ onToggleMobileMenu?: () => void }>() || {};
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 pb-12">
-      {/* ========================================================= */}
-      {/* TOP HERO BANNER & 4 CIRCULAR STATS (2-COL DESKTOP)        */}
-      {/* ========================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-        {/* Left 8 Cols: Gradient Hero Banner with 3D Reading Student */}
-        <div className="lg:col-span-8 relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#5A20DF] via-[#6D34EC] to-[#8048F4] text-white p-6 sm:p-8 shadow-xl shadow-[#7047EB]/15 flex flex-col justify-between min-h-[220px]">
-          {/* Subtle Ambient Glow Circles */}
-          <div className="absolute right-20 -top-10 w-44 h-44 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="absolute -left-10 -bottom-10 w-48 h-48 bg-purple-900/40 rounded-full blur-3xl pointer-events-none" />
+    <div className="relative min-h-[calc(100vh-4rem)] space-y-6 animate-in fade-in duration-300 pb-12">
+      {/* Ambient background glows matching Figma design: subtle mint glow on top-left and lavender on top-right */}
+      <div className="absolute -top-10 -left-10 w-96 h-96 bg-emerald-200/25 dark:bg-emerald-950/20 rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="absolute -top-10 right-0 w-96 h-96 bg-purple-200/30 dark:bg-purple-950/20 rounded-full blur-3xl pointer-events-none -z-10" />
 
-          <div className="relative z-10 max-w-md space-y-3">
-            {/* Tag Pills */}
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-md bg-white/20 backdrop-blur-md text-[10px] font-extrabold tracking-widest uppercase">
-                ONLINE COURSE
-              </span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-200">
-                <Sparkles className="w-3 h-3 text-amber-300" />
-                Student Learning Center
-              </span>
-            </div>
-
-            {/* Headline */}
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-snug">
-              Sharpen Your Skills With <br />
-              Professional Online Courses
+      {/* ========================================================= */}
+      {/* 1. TOP HEADER & GREETING BAR                              */}
+      {/* ========================================================= */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+        <div className="flex items-center gap-3">
+          {outletContext?.onToggleMobileMenu && (
+            <button
+              onClick={outletContext.onToggleMobileMenu}
+              className="p-2 -ml-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-800 lg:hidden"
+              aria-label="Open navigation menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              Hi, {user?.name || 'Maheswari'}
             </h1>
-
-            {/* Pill Action Button */}
-            <div className="pt-2">
-              <button
-                onClick={() => {
-                  const firstCourse = courses[0];
-                  if (firstCourse) navigate(`/courses/${firstCourse.id}`);
-                  else toast.info('Navigating to course player...');
-                }}
-                className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full bg-[#4E13D4] hover:bg-[#400cb8] active:scale-95 text-white text-xs font-bold transition-all shadow-md group"
-              >
-                <span>Join Now</span>
-                <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
-                  <Play className="w-2.5 h-2.5 fill-white text-white ml-0.5" />
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* 3D Student Illustration on Right */}
-          <div className="absolute right-0 sm:right-4 bottom-0 z-10 pointer-events-none transform translate-y-2 sm:translate-y-0">
-            <Student3DIllustration />
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 font-medium">
+              Your next step to keep moving forward with AI
+            </p>
           </div>
         </div>
 
-        {/* Right 4 Cols: 2x2 Circular Metrics Cards */}
-        <div className="lg:col-span-4 grid grid-cols-2 gap-3.5">
-          {/* Card 1: Courses Completed (11/16 ~ 69%) */}
-          <CircularMetricCard
-            valueText="11/16"
-            percentage={69}
-            label="Courses completed"
-          />
-
-          {/* Card 2: Courses in Progress (4/16 ~ 25%) */}
-          <CircularMetricCard
-            valueText="4/16"
-            percentage={25}
-            label="Courses in progress"
-          />
-
-          {/* Card 3: Total Learning Time (45 hrs) */}
-          <CircularMetricCard
-            valueText="45"
-            subText="hrs"
-            percentage={78}
-            label="Total learning time"
-          />
-
-          {/* Card 4: Daily Learning Streak (3 Day) */}
-          <CircularMetricCard
-            valueText="3"
-            subText="Day"
-            percentage={60}
-            label="Daily Learning Streak"
-          />
-        </div>
-      </div>
-
-      {/* ========================================================= */}
-      {/* 3. QUICK LEARNING NAVIGATION SHORTCUT BAR                 */}
-      {/* ========================================================= */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xs">
-        <div className="flex items-center gap-2">
-          <BookOpen className="w-4 h-4 text-[#7047EB]" />
-          <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-            Quick Learning Navigation
-          </span>
-          <span className="text-[11px] text-slate-400 hidden sm:inline">
-            — Jump directly to active curriculum trackers
-          </span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 text-xs font-medium">
-          <Link
-            to="/progress"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-[#7047EB] dark:text-purple-300 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors"
+        {/* Right context indicator & quick utility icons */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/courses')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-black dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
-            <LineChartIcon className="w-3.5 h-3.5" />
-            <span>My Progress</span>
-          </Link>
-          <Link
-            to="/courses"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-          >
-            <GraduationCap className="w-3.5 h-3.5" />
-            <span>Course Catalog</span>
-          </Link>
-          <Link
-            to="/assignments"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors"
-          >
-            <FileCheck2 className="w-3.5 h-3.5" />
-            <span>Assignments & Quizzes</span>
-          </Link>
-          <Link
-            to="/instructors"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors"
-          >
-            <UserCheck className="w-3.5 h-3.5" />
-            <span>Faculty Mentors</span>
-          </Link>
-        </div>
-      </div>
+            <span>CyberGenius - Inside the Breach</span>
+            <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+          </button>
 
-      {/* ========================================================= */}
-      {/* 4. MIDDLE SECTION: MY COURSES (8 COLS) + YOUR STATISTICS  */}
-      {/* ========================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left 8 Cols: "My Courses" */}
-        <div className="lg:col-span-8 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-baseline gap-2">
-              <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-                My Courses
-              </h2>
-              <span className="text-[11px] font-medium text-slate-400">
-                — My Enrolled Courses
-              </span>
-            </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => {
+                navigate('/courses');
+                toast.info('Opening CyberGenius curriculum search...');
+              }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Search curriculum"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                setIsFellowCallOpen(true);
+              }}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Cyber Cat Fellow"
+            >
+              <MessageSquare className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => toast.info('CyberGenius notification: Microsoft Masterclass starts Dec 8!')}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+            </button>
 
-            {/* Carousel navigation arrows */}
-            <div className="flex items-center gap-1.5">
+            {/* Student Profile & Logout Trigger */}
+            <div className="relative ml-1">
               <button
-                onClick={() => setMyCoursesPage((p) => Math.max(0, p - 1))}
-                disabled={myCoursesPage === 0}
-                className="w-7 h-7 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 hover:text-[#7047EB] hover:border-[#7047EB] disabled:opacity-40 disabled:pointer-events-none transition-colors shadow-xs"
+                onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                className="flex items-center gap-2 p-0.5 rounded-full hover:ring-2 hover:ring-[#5B3DF5]/40 transition-all"
+                title="Profile & Account Settings"
+                data-testid="student-profile-btn"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <img
+                  src={user?.avatarUrl || editAvatar}
+                  alt={user?.name || 'Maheswari'}
+                  className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700 shadow-xs"
+                />
               </button>
-              <button
-                onClick={() => setMyCoursesPage((p) => p + 1)}
-                className="w-7 h-7 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-500 hover:text-[#7047EB] hover:border-[#7047EB] transition-colors shadow-xs"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
 
-          {/* 3 Course Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {filteredMyCourses.map((c) => {
-              const isBookmarked = bookmarkedIds.includes(c.id);
+              {isProfileMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsProfileMenuOpen(false)} />
+                  <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl z-50 p-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 mb-2">
+                      <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                        {user?.name || 'Maheswari'}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                        {user?.email || 'student@edusphere.com'}
+                      </p>
+                      <span className="inline-block mt-1 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-50 text-[#5B3DF5] dark:bg-purple-950 dark:text-purple-300">
+                        Student Account
+                      </span>
+                    </div>
 
-              return (
-                <div
-                  key={c.id}
-                  onClick={() => setPreviewCourse(c)}
-                  className="group bg-white dark:bg-slate-900 rounded-2xl p-3 border border-slate-100 dark:border-slate-800/80 shadow-xs hover:shadow-lg transition-all flex flex-col justify-between cursor-pointer"
-                >
-                  <div>
-                    {/* Course Thumbnail Container matching graphic style */}
-                    <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden mb-3">
-                      {c.thumbnailType === 'react' ? (
-                        <div className="w-full h-full bg-gradient-to-tr from-[#0F172A] via-[#1E293B] to-[#0A2540] flex flex-col items-center justify-center text-center p-3 text-white">
-                          <span className="text-[10px] tracking-wider font-extrabold text-cyan-400 uppercase">
-                            FRONT END DEVELOPMENT
-                          </span>
-                          <span className="text-sm font-black text-white tracking-widest mt-0.5">
-                            WITH REACT
-                          </span>
-                          <div className="mt-2 text-cyan-400/80">
-                            <svg className="w-8 h-8 animate-spin-slow" viewBox="0 0 24 24" fill="none">
-                              <ellipse cx="12" cy="12" rx="10" ry="4" stroke="currentColor" strokeWidth="1.5" />
-                              <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(60 12 12)" stroke="currentColor" strokeWidth="1.5" />
-                              <ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(120 12 12)" stroke="currentColor" strokeWidth="1.5" />
-                              <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-                            </svg>
-                          </div>
-                        </div>
-                      ) : c.thumbnailType === 'java' ? (
-                        <div className="w-full h-full bg-gradient-to-tr from-[#1E112A] via-[#2A153A] to-[#45104E] flex flex-col items-center justify-center text-center p-3 text-white">
-                          <span className="text-[9px] tracking-wider font-semibold text-rose-300">
-                            BEST Course for
-                          </span>
-                          <span className="text-sm font-black text-white leading-tight">
-                            Java Backend
-                          </span>
-                          <span className="text-xs font-bold text-rose-300">Development</span>
-                          <div className="mt-2 text-[10px] font-mono text-purple-200/70 bg-black/40 px-2 py-0.5 rounded">
-                            Spring Boot · REST APIs
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-tr from-[#064E3B] via-[#047857] to-[#10B981] flex flex-col items-center justify-center text-center p-3 text-white">
-                          <span className="text-sm font-black tracking-wide text-white">
-                            TOP 10
-                          </span>
-                          <span className="text-xs font-extrabold text-emerald-100">
-                            HOME WORKOUT
-                          </span>
-                          <span className="text-[9px] italic text-emerald-200 mt-1">
-                            by Ashley Kruger
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Top-Right Bookmark Button */}
+                    <div className="space-y-1">
                       <button
-                        onClick={(e) => toggleBookmark(c.id, e)}
-                        className={`absolute top-2 right-2 w-7 h-7 rounded-full backdrop-blur-md flex items-center justify-center transition-all ${
-                          isBookmarked
-                            ? 'bg-[#7047EB] text-white shadow-sm'
-                            : 'bg-black/30 hover:bg-black/50 text-white'
-                        }`}
-                        title={isBookmarked ? 'Remove bookmark' : 'Bookmark course'}
+                        onClick={() => {
+                          setIsProfileMenuOpen(false);
+                          setEditName(user?.name || 'Maheswari');
+                          setEditEmail(user?.email || 'student@edusphere.com');
+                          setEditBio(user?.bio || 'Passionate computer science learner pursuing cloud and AI cybersecurity mastery.');
+                          setEditAvatar(user?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80');
+                          setIsProfileModalOpen(true);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl transition-colors text-left"
                       >
-                        <Bookmark
-                          className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-white' : ''}`}
-                        />
+                        <Edit3 className="w-3.5 h-3.5 text-[#5B3DF5]" />
+                        <span>Update Profile</span>
+                      </button>
+
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors text-left"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Log Out</span>
                       </button>
                     </div>
-
-                    {/* Tag + Star Rating */}
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span
-                        className={`text-[9px] font-extrabold tracking-wider px-2 py-0.5 rounded-full ${
-                          c.tagColor === 'blue'
-                            ? 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400'
-                            : c.tagColor === 'rose'
-                            ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400'
-                            : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400'
-                        }`}
-                      >
-                        {c.tag}
-                      </span>
-
-                      <div className="flex items-center gap-1 text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        <span>{c.rating.toFixed(1)}</span>
-                      </div>
-                    </div>
-
-                    {/* Title (2-line clamp) */}
-                    <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-relaxed group-hover:text-[#7047EB] transition-colors">
-                      {c.title}
-                    </h3>
                   </div>
-
-                  {/* Footer Row: Instructor Info + Purple Play Button */}
-                  <div className="mt-4 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <img
-                        src={c.instructorAvatar}
-                        alt={c.instructorName}
-                        className="w-7 h-7 rounded-full object-cover flex-shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 truncate">
-                          {c.instructorName}
-                        </p>
-                        <p className="text-[9px] text-slate-400 truncate">
-                          {c.instructorRole}
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPreviewCourse(c);
-                      }}
-                      className="w-7 h-7 rounded-full bg-[#7047EB] hover:bg-[#5E35D8] flex items-center justify-center text-white shadow-sm hover:scale-105 active:scale-95 transition-all flex-shrink-0"
-                      title="Continue learning"
-                    >
-                      <Play className="w-3 h-3 fill-white text-white ml-0.5" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right 4 Cols: "Your statistics" Spline Chart */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-100 dark:border-slate-800/80 shadow-xs space-y-4">
-          {/* Header & Tabs */}
-          <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-              Your statistics
-            </h2>
-
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center gap-3 text-xs">
-                <button
-                  onClick={() => setStatsTab('hours')}
-                  className={`font-bold transition-colors ${
-                    statsTab === 'hours'
-                      ? 'text-slate-900 dark:text-white border-b-2 border-[#7047EB] pb-0.5'
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  Learning Hours
-                </button>
-                <button
-                  onClick={() => setStatsTab('courses')}
-                  className={`font-medium transition-colors ${
-                    statsTab === 'courses'
-                      ? 'text-slate-900 dark:text-white border-b-2 border-[#7047EB] pb-0.5'
-                      : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  My Courses
-                </button>
-              </div>
-
-              {/* Weekly Dropdown Pill */}
-              <button
-                onClick={() =>
-                  setStatsTimeframe((t) => (t === 'Weekly' ? 'Monthly' : 'Weekly'))
-                }
-                className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#7047EB] text-white text-[11px] font-semibold hover:bg-[#5E35D8] transition-colors shadow-xs"
-              >
-                <span>{statsTimeframe}</span>
-                <ChevronDown className="w-3 h-3" />
-              </button>
+                </>
+              )}
             </div>
-          </div>
-
-          {/* Smooth Curved Spline Chart */}
-          <div className="h-56 w-full pt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={statsTimeframe === 'Weekly' ? WEEKLY_LEARNING_DATA : MONTHLY_LEARNING_DATA}
-                margin={{ top: 25, right: 10, left: -25, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient id="purpleStatGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#7047EB" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#7047EB" stopOpacity={0.0} />
-                  </linearGradient>
-                </defs>
-
-                <XAxis
-                  dataKey="day"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 11, fill: '#94A3B8' }}
-                />
-                <YAxis
-                  ticks={[0, 1, 2, 3, 4, 5]}
-                  domain={[0, 5]}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 11, fill: '#94A3B8' }}
-                />
-
-                <Tooltip
-                  content={({ active, payload }) => {
-                    if (active && payload && payload.length) {
-                      return (
-                        <div className="bg-slate-900 text-white text-xs px-2.5 py-1 rounded-lg shadow-lg">
-                          <span className="font-bold">{payload[0].value} hours</span>
-                        </div>
-                      );
-                    }
-                    return null;
-                  }}
-                />
-
-                <Area
-                  type="monotone"
-                  dataKey="hours"
-                  stroke="#7047EB"
-                  strokeWidth={3}
-                  fill="url(#purpleStatGrad)"
-                  dot={{
-                    r: 4,
-                    fill: '#7047EB',
-                    stroke: '#FFFFFF',
-                    strokeWidth: 2,
-                  }}
-                  activeDot={{
-                    r: 6,
-                    fill: '#7047EB',
-                    stroke: '#FFFFFF',
-                    strokeWidth: 2,
-                  }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
           </div>
         </div>
       </div>
 
       {/* ========================================================= */}
-      {/* 5. BOTTOM SECTION: POPULAR COURSES (8 COLS) + CTA (4 COLS)*/}
+      {/* 2. MAIN 2-COLUMN LAYOUT: CONTENT (8 COLS) + FELLOW (4 COLS)*/}
       {/* ========================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left 8 Cols: "Popular Courses" */}
-        <div className="lg:col-span-8 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-              Popular Courses
-            </h2>
-          </div>
+        {/* ------------------------------------------------------- */}
+        {/* LEFT 8 COLS: HERO CARD + YOUR PROGRESS + YOUR CIRCLE    */}
+        {/* ------------------------------------------------------- */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* A. FEATURED "CONTINUE" HERO CARD */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-100 dark:border-slate-800/80 shadow-xs hover:shadow-md transition-all">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-6 items-center">
+              {/* Left Column: Photo of Instructor */}
+              <div className="sm:col-span-5 md:col-span-6 relative aspect-[4/3] w-full rounded-2xl overflow-hidden shadow-xs bg-slate-100">
+                <img
+                  src="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=800&auto=format&fit=crop&q=80"
+                  alt="Instructor Inside the Breach"
+                  className="w-full h-full object-cover object-top hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute top-3 left-3 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md text-white text-[10px] font-bold tracking-wider uppercase">
+                  LIVE TRACK
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {filteredPopularCourses.map((c) => (
-              <div
-                key={c.id}
-                className="group bg-white dark:bg-slate-900 rounded-2xl p-3 border border-slate-100 dark:border-slate-800/80 shadow-xs hover:shadow-lg transition-all flex flex-col justify-between"
-              >
+              {/* Right Column: Course Info & Continue Actions */}
+              <div className="sm:col-span-7 md:col-span-6 flex flex-col justify-between space-y-4">
                 <div>
-                  {/* Thumbnail matching screenshot */}
-                  <div className="relative aspect-[16/10] w-full rounded-xl overflow-hidden mb-3">
-                    {c.thumbnailType === 'design' ? (
-                      <div className="w-full h-full bg-gradient-to-tr from-[#312E81] via-[#4338CA] to-[#6366F1] flex flex-col items-center justify-center text-center p-3 text-white">
-                        <span className="text-[9px] tracking-widest font-extrabold uppercase text-amber-300">
-                          GRAPHIC DESIGNING
-                        </span>
-                        <div className="relative my-1">
-                          <span className="text-2xl">👁️</span>
-                        </div>
-                        <span className="text-[10px] font-bold text-white/90">
-                          UI / UX Masterclass
-                        </span>
-                      </div>
-                    ) : c.thumbnailType === 'productivity' ? (
-                      <div className="w-full h-full bg-gradient-to-tr from-[#7F1D1D] via-[#991B1B] to-[#DC2626] flex flex-col items-center justify-center text-center p-3 text-white">
-                        <span className="text-[10px] tracking-widest font-extrabold uppercase text-amber-200">
-                          INCREASE YOUR
-                        </span>
-                        <span className="text-sm font-black text-white">
-                          PRODUCTIVITY 2x
-                        </span>
-                        <span className="text-[9px] italic text-rose-200 mt-0.5">
-                          by John Kenney
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-tr from-[#1E1B4B] via-[#2E1065] to-[#4C1D95] flex flex-col items-center justify-center text-center p-3 text-white">
-                        <span className="text-[9px] tracking-wider font-extrabold uppercase text-purple-300">
-                          FROM BEGINNER TO PRO
-                        </span>
-                        <span className="text-xs font-black text-white leading-tight">
-                          ONE COURSE, ENDLESS GROWTH
-                        </span>
-                        <span className="text-[9px] italic text-purple-200 mt-0.5">
-                          by Michael Harris
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Tag + Star Rating */}
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span
-                      className={`text-[9px] font-extrabold tracking-wider px-2 py-0.5 rounded-full ${
-                        c.tagColor === 'amber'
-                          ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400'
-                          : c.tagColor === 'orange'
-                          ? 'bg-orange-50 text-orange-600 dark:bg-orange-950/60 dark:text-orange-400'
-                          : 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400'
-                      }`}
-                    >
-                      {c.tag}
-                    </span>
-
-                    <div className="flex items-center gap-1 text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                      <span>{c.rating.toFixed(1)}</span>
-                    </div>
-                  </div>
-
-                  {/* Title */}
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 line-clamp-2 leading-relaxed group-hover:text-[#7047EB] transition-colors">
-                    {c.title}
-                  </h3>
+                  <span className="text-[10px] font-extrabold tracking-widest text-slate-400 dark:text-slate-400 uppercase">
+                    CONTINUE
+                  </span>
+                  <p className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-400 mt-1">
+                    Inside the Breach
+                  </p>
+                  <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white leading-snug mt-1.5">
+                    Inside the Breach - They're in the cloud
+                  </h2>
                 </div>
 
-                {/* Footer Row: Price + "Get Course" Button */}
-                <div className="mt-4 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
-                    ${c.price}
-                  </span>
-
+                <div className="flex items-center gap-4 pt-2">
                   <button
-                    onClick={() => handleGetCourse(c)}
-                    className="px-3.5 py-1.5 rounded-lg bg-[#7047EB] hover:bg-[#5E35D8] active:scale-95 text-white text-xs font-bold transition-all shadow-xs"
+                    onClick={() => setIsLessonModalOpen(true)}
+                    className="inline-flex items-center justify-center px-6 py-2.5 rounded-full bg-black hover:bg-slate-800 active:scale-95 text-white text-xs font-bold transition-all shadow-sm"
                   >
-                    Get Course
+                    Continue
+                  </button>
+                  <button
+                    onClick={() => navigate('/courses')}
+                    className="text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white transition-colors"
+                  >
+                    View all lessons
                   </button>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right 4 Cols: "Learn even more!" CTA Card */}
-        <div className="lg:col-span-4 relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#EDE9FE]/90 to-[#F5F3FF] dark:from-purple-950/40 dark:to-indigo-950/30 border border-purple-100 dark:border-purple-900/40 p-6 flex flex-col justify-between shadow-xs min-h-[220px]">
-          <div className="relative z-10 max-w-[210px] space-y-2">
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">
-              Learn even more!
-            </h3>
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Gain access to exclusive content, priority support & certifications – just $9.99/month!
-            </p>
-
-            <div className="pt-2">
-              <button
-                onClick={() => setIsPremiumModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-[#7047EB] hover:bg-[#5E35D8] active:scale-95 text-white text-xs font-bold shadow-md shadow-[#7047EB]/25 transition-all"
-              >
-                Go Premium
-              </button>
             </div>
           </div>
 
-          {/* 3D Megaphone Graphic in corner */}
-          <div className="absolute right-0 bottom-1 pointer-events-none transform translate-x-2">
-            <Megaphone3DIllustration />
+          {/* B. BOTTOM ROW: YOUR PROGRESS (4-5 COLS) + YOUR CIRCLE (7-8 COLS) */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
+            {/* CARD 1: YOUR PROGRESS */}
+            <div className="md:col-span-5 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-100 dark:border-slate-800/80 shadow-xs flex flex-col justify-between">
+              <div>
+                <span className="text-[11px] font-bold tracking-widest text-slate-500 dark:text-slate-400 uppercase">
+                  YOUR PROGRESS
+                </span>
+
+                {/* Two Vertical Thermometer Gauges Side by Side */}
+                <div className="grid grid-cols-2 gap-4 mt-4 items-end">
+                  {/* Gauge 1: Lessons (17%) */}
+                  <div className="flex flex-col items-center">
+                    <div className="relative w-12 h-36 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-1 flex flex-col justify-end overflow-hidden shadow-inner">
+                      {/* Filled Pill */}
+                      <div
+                        style={{ height: `${lessonProgress}%` }}
+                        className="w-full rounded-full bg-[#9D8DF1] transition-all duration-700 ease-out shadow-xs"
+                      />
+                    </div>
+                    <div className="text-center mt-3">
+                      <span className="text-2xl font-black text-slate-900 dark:text-white leading-none">
+                        {lessonProgress}%
+                      </span>
+                      <p className="text-xs text-slate-400 font-medium mt-1">Lessons</p>
+                    </div>
+                  </div>
+
+                  {/* Gauge 2: Activities (0%) */}
+                  <div className="flex flex-col items-center">
+                    <div className="relative w-12 h-36 rounded-full border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-1 flex flex-col justify-end overflow-hidden shadow-inner">
+                      {/* Empty Pill */}
+                      <div
+                        style={{ height: `${activityProgress}%` }}
+                        className="w-full rounded-full bg-[#9D8DF1] transition-all duration-700 ease-out"
+                      />
+                    </div>
+                    <div className="text-center mt-3">
+                      <span className="text-2xl font-black text-slate-900 dark:text-white leading-none">
+                        {activityProgress}%
+                      </span>
+                      <p className="text-xs text-slate-400 font-medium mt-1">Activities</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* CARD 2: YOUR CIRCLE */}
+            <div className="md:col-span-7 bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-100 dark:border-slate-800/80 shadow-xs flex flex-col justify-between">
+              <div>
+                <span className="text-[11px] font-bold tracking-widest text-slate-500 dark:text-slate-400 uppercase">
+                  YOUR CIRCLE
+                </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center mt-2">
+                  {/* Event Details */}
+                  <div className="sm:col-span-5 space-y-1">
+                    <span className="text-xs text-slate-400 font-medium">Next event</span>
+                    <div className="text-2xl sm:text-3xl font-black text-[#5B3DF5] dark:text-[#8B72F8] tracking-tight leading-tight">
+                      8 DEC
+                    </div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white leading-snug pt-1">
+                      Cyber Genius Masterclass
+                    </p>
+                    <p className="text-[11px] text-slate-400 font-medium">
+                      With Microsoft
+                    </p>
+                  </div>
+
+                  {/* 3D Circular Tables Community Scene */}
+                  <div className="sm:col-span-7 flex flex-col items-center sm:items-end justify-center">
+                    <YourCircleIllustration />
+                    <button
+                      onClick={() => setIsEventModalOpen(true)}
+                      className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:text-[#5B3DF5] dark:hover:text-[#8B72F8] transition-colors mt-1 inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Be the first to enter</span>
+                      <ChevronRight className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ------------------------------------------------------- */}
+        {/* RIGHT 4 COLS: YOUR FELLOW (CYBER CAT AI COMPANION)      */}
+        {/* ------------------------------------------------------- */}
+        <div className="lg:col-span-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-100 dark:border-slate-800/80 shadow-xs flex flex-col justify-between min-h-[580px]">
+            {/* Top row with expand icon and header */}
+            <div className="relative flex items-center justify-center">
+              <button
+                onClick={() => setIsFellowExpanded(!isFellowExpanded)}
+                className="absolute left-0 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1 rounded-lg"
+                title={isFellowExpanded ? 'Compact view' : 'Expand Fellow panel'}
+              >
+                {isFellowExpanded ? (
+                  <Minimize2 className="w-4 h-4" />
+                ) : (
+                  <Maximize2 className="w-4 h-4" />
+                )}
+              </button>
+              <span className="text-[11px] font-bold tracking-widest text-slate-500 dark:text-slate-400 uppercase text-center">
+                YOUR FELLOW
+              </span>
+            </div>
+
+            {/* Center Profile: Cyber Cat */}
+            <div className="flex flex-col items-center text-center my-3">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                Cyber Cat
+              </h3>
+
+              {/* Avatar with soft glow */}
+              <div className="my-2 cursor-pointer hover:scale-105 transition-transform" onClick={() => setIsFellowCallOpen(true)}>
+                <CyberCatIllustration size={135} />
+              </div>
+
+              {/* Call Button (Green Outline Pill) */}
+              <button
+                onClick={() => setIsFellowCallOpen(true)}
+                className="mt-1 inline-flex items-center justify-center px-9 py-1.5 rounded-full border border-emerald-500 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 active:scale-95 text-xs font-bold transition-all shadow-xs"
+              >
+                Call
+              </button>
+            </div>
+
+            {/* Quick Action Prompt Buttons */}
+            <div className="space-y-2 mt-2">
+              <button
+                onClick={() => handleQuickPrompt('Interview Practice')}
+                className="w-full py-2 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all flex items-center justify-center gap-1.5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700"
+              >
+                <span>Interview Practice</span>
+                <ExternalLink className="w-3 h-3 text-slate-400" />
+              </button>
+
+              <button
+                onClick={() => handleQuickPrompt('Recap and next step')}
+                className="w-full py-2 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all text-center shadow-2xs hover:border-slate-300 dark:hover:border-slate-700"
+              >
+                Recap and next step
+              </button>
+
+              <button
+                onClick={() => handleQuickPrompt('Quiz me on this lesson')}
+                className="w-full py-2 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all text-center shadow-2xs hover:border-slate-300 dark:hover:border-slate-700"
+              >
+                Quiz me on this lesson
+              </button>
+            </div>
+
+            {/* Expanded Chat Log (if user asked questions) */}
+            {chatMessages.length > 1 && (
+              <div className="mt-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 max-h-36 overflow-y-auto space-y-2 text-xs">
+                {chatMessages.slice(-2).map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`flex flex-col ${
+                      msg.sender === 'user' ? 'items-end' : 'items-start'
+                    }`}
+                  >
+                    <span
+                      className={`px-3 py-1.5 rounded-xl max-w-[90%] leading-relaxed ${
+                        msg.sender === 'user'
+                          ? 'bg-black text-white dark:bg-brand-600'
+                          : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-600'
+                      }`}
+                    >
+                      {msg.text}
+                    </span>
+                    <span className="text-[9px] text-slate-400 mt-0.5 px-1">{msg.time}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Bottom Interactive Chat Input Bar */}
+            <form onSubmit={handleSendChat} className="mt-4">
+              <div className="rounded-full bg-slate-100 dark:bg-slate-800/90 px-3.5 py-2 flex items-center gap-2 border border-slate-200/60 dark:border-slate-700 focus-within:ring-2 focus-within:ring-[#7047EB]/20 transition-all">
+                <button
+                  type="button"
+                  onClick={() => toast.info('Attach files or code snippet for Cyber Cat review.')}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                  title="Attach file"
+                >
+                  <Paperclip className="w-4 h-4 -rotate-45" />
+                </button>
+
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Ask Cyber Cat anything"
+                  className="flex-1 bg-transparent border-0 outline-none text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 font-medium"
+                />
+
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim()}
+                  className="text-slate-600 dark:text-slate-300 hover:text-[#5B3DF5] disabled:opacity-30 disabled:pointer-events-none transition-colors"
+                  title="Send message"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
 
       {/* ========================================================= */}
-      {/* 6. MODALS: PRO TIER DIALOG & COURSE PREVIEW               */}
+      {/* 3. INTERACTIVE MODALS                                     */}
       {/* ========================================================= */}
-      {/* Pro Tier Dialog */}
-      {isPremiumModalOpen && (
+
+      {/* MODAL 1: LESSON PLAYER "Inside the Breach - They're in the cloud" */}
+      {isLessonModalOpen && (
         <Modal
-          isOpen={isPremiumModalOpen}
-          onClose={() => setIsPremiumModalOpen(false)}
-          title="Unlock EduSphere Premium Pass"
-          description="Accelerate your mastery with unlimited learning credentials & mentors"
-          maxWidth="md"
+          isOpen={isLessonModalOpen}
+          onClose={() => setIsLessonModalOpen(false)}
+          title="Inside the Breach - They're in the cloud"
+          description="CyberGenius Flagship Security Track · Episode 3"
+          maxWidth="lg"
         >
           <div className="space-y-4 py-2">
-            <div className="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/50 border border-purple-100 dark:border-purple-900/40 space-y-2 text-xs">
-              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
-                <Check className="w-4 h-4 text-[#7047EB]" />
-                <span>Unlimited access to 100+ Computer Science Masterclasses</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
-                <Check className="w-4 h-4 text-[#7047EB]" />
-                <span>Direct 1-on-1 Code Reviews from Lead Faculty</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
-                <Check className="w-4 h-4 text-[#7047EB]" />
-                <span>Verified Accredited Certificates for LinkedIn & Resumes</span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
-                <Check className="w-4 h-4 text-[#7047EB]" />
-                <span>Offline video lecture downloads on mobile & desktop</span>
+            {/* Simulated Video Player */}
+            <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 flex items-center justify-center group shadow-md">
+              <img
+                src="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=1200&auto=format&fit=crop&q=80"
+                alt="Video thumbnail"
+                className="w-full h-full object-cover opacity-60"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30" />
+
+              <button
+                onClick={() => toast.success('Streaming video: AWS IAM Incident Response simulation')}
+                className="w-14 h-14 rounded-full bg-white/90 text-slate-900 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-xl group-hover:bg-[#5B3DF5] group-hover:text-white"
+              >
+                <Play className="w-6 h-6 fill-current ml-0.5" />
+              </button>
+
+              <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-white text-xs">
+                <span className="font-mono">14:20 / 48:10</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/80 font-bold text-[10px]">
+                  1080p HD
+                </span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white">
-              <span>Subscription Price:</span>
-              <span className="text-base text-[#7047EB]">$9.99 / month</span>
+            {/* Lesson Summary & Objectives */}
+            <div className="space-y-2 text-xs">
+              <h4 className="font-bold text-slate-900 dark:text-white">
+                Lesson Overview
+              </h4>
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+                In this episode, lead incident responders walk through a real-world multi-tenant AWS cloud infiltration. You will trace how compromised CI/CD tokens lead to cross-account S3 exfiltration, and learn how to construct automated remediation lambdas.
+              </p>
             </div>
 
-            <div className="pt-2 flex justify-end gap-2">
+            {/* Footer Buttons */}
+            <div className="pt-2 flex flex-wrap justify-between items-center gap-2 border-t border-slate-100 dark:border-slate-800">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setIsPremiumModalOpen(false)}
+                onClick={() => setIsLessonModalOpen(false)}
               >
-                Maybe Later
+                Close
+              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsLessonModalOpen(false);
+                    navigate('/courses');
+                  }}
+                  leftIcon={<Search className="w-3.5 h-3.5" />}
+                >
+                  Course Catalog & Registration
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setIsLessonModalOpen(false);
+                    navigate('/courses/course-1');
+                  }}
+                  className="bg-black text-white hover:bg-slate-800"
+                  leftIcon={<Play className="w-3.5 h-3.5 fill-current" />}
+                >
+                  Watch Recordings & References
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* MODAL 2: LIVE CALL WITH CYBER CAT */}
+      {isFellowCallOpen && (
+        <Modal
+          isOpen={isFellowCallOpen}
+          onClose={() => setIsFellowCallOpen(false)}
+          title="Cyber Cat Live Fellow Call"
+          description="Interactive AI Cybersecurity Tutoring Session"
+          maxWidth="md"
+        >
+          <div className="space-y-6 py-4 flex flex-col items-center text-center">
+            {/* Pulsing Avatar */}
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-emerald-400/20 blur-2xl animate-pulse" />
+              <CyberCatIllustration size={150} />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                Cyber Cat is Listening...
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs">
+                "Hi Maheswari! I'm analyzing your latest progress in cloud defenses. Ask me anything or practice your technical interview!"
+              </p>
+            </div>
+
+            {/* Animated Audio Waveform */}
+            <div className="flex items-center gap-1.5 h-10 py-2">
+              {[40, 75, 30, 90, 50, 100, 65, 80, 45, 85, 35, 95].map((h, i) => (
+                <div
+                  key={i}
+                  style={{ height: `${h}%` }}
+                  className="w-1.5 rounded-full bg-[#5B3DF5] animate-pulse"
+                />
+              ))}
+            </div>
+
+            {/* Call Controls */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => toast.info('Muted microphone.')}
+                className="w-11 h-11 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 hover:bg-slate-200"
+                title="Mute"
+              >
+                <Volume2 className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => {
+                  setIsFellowCallOpen(false);
+                  toast.success('Call ended. Cyber Cat saved session notes to your dashboard.');
+                }}
+                className="w-13 h-13 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all p-3"
+                title="End Call"
+              >
+                <PhoneOff className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* MODAL 3: YOUR CIRCLE MASTERCLASS RSVP */}
+      {isEventModalOpen && (
+        <Modal
+          isOpen={isEventModalOpen}
+          onClose={() => setIsEventModalOpen(false)}
+          title="Cyber Genius Masterclass With Microsoft"
+          description="8 DEC · Global Student Innovation Stage"
+          maxWidth="md"
+        >
+          <div className="space-y-4 py-2 text-xs">
+            <div className="p-4 rounded-2xl bg-purple-50 dark:bg-purple-950/40 border border-purple-100 dark:border-purple-900/50 space-y-2">
+              <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100 font-bold">
+                <Calendar className="w-4 h-4 text-[#5B3DF5]" />
+                <span>Date: Friday, December 8, 2026 · 10:00 AM PST</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                <Shield className="w-4 h-4 text-emerald-600" />
+                <span>Led by Microsoft Security Architecture team</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>Interactive Live Hack-a-thon & Hands-on Azure Sentinel Labs</span>
+              </div>
+            </div>
+
+            <p className="text-slate-600 dark:text-slate-300 leading-relaxed">
+              Connect with over 1,200 student peers across the globe in virtual breakout circles. You will investigate simulated intrusion incidents in teams and earn official Microsoft digital badges.
+            </p>
+
+            <div className="pt-2 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEventModalOpen(false)}
+              >
+                Dismiss
               </Button>
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => {
-                  setIsPremiumModalOpen(false);
-                  toast.success('Welcome to EduSphere Premium! 7-Day Free Trial activated.');
+                  setIsEventModalOpen(false);
+                  toast.success("RSVP Confirmed! Calendar invitation sent to student@edusphere.com.");
                 }}
-                className="bg-[#7047EB] hover:bg-[#5E35D8]"
+                className="bg-[#5B3DF5] hover:bg-[#4E31DD] text-white"
               >
-                Start 7-Day Free Trial
+                RSVP & Claim Free Pass
               </Button>
             </div>
           </div>
         </Modal>
       )}
 
-      {/* Course Detail Preview Modal */}
-      {previewCourse && (
+      {/* MODAL 4: INTERVIEW PRACTICE & QUIZ */}
+      {isPracticeModalOpen && (
         <Modal
-          isOpen={!!previewCourse}
-          onClose={() => setPreviewCourse(null)}
-          title={previewCourse.title}
-          description={`Category: ${previewCourse.tag} · Rating: ⭐ ${previewCourse.rating.toFixed(1)}`}
-          maxWidth="lg"
+          isOpen={isPracticeModalOpen}
+          onClose={() => setIsPracticeModalOpen(false)}
+          title={practiceType}
+          description="Interactive Cyber Cat Challenge"
+          maxWidth="md"
         >
-          <div className="space-y-4 py-2">
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              This curriculum track is part of your personalized student dashboard syllabus. Gain practical hands-on experience, complete guided exercises, and evaluate your knowledge with verified tests.
-            </p>
-
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800">
-                <span className="text-slate-400">Track Specialization</span>
-                <p className="font-bold text-slate-800 dark:text-slate-200 mt-0.5">
-                  {previewCourse.tag}
-                </p>
+          <div className="space-y-4 py-2 text-xs">
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#5B3DF5]">
+                  Question 1 of 3
+                </span>
+                <span className="text-[10px] text-slate-400">Cloud Defense</span>
               </div>
-              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800">
-                <span className="text-slate-400">Curriculum Tier</span>
-                <p className="font-bold text-[#7047EB] mt-0.5">
-                  Accredited Masterclass
-                </p>
-              </div>
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                When an attacker compromises an EC2 instance metadata service (IMDSv1), which mechanism best mitigates token exfiltration?
+              </p>
             </div>
 
-            <div className="pt-2 flex justify-end gap-2">
+            <div className="space-y-2">
+              {[
+                { label: 'A', text: 'Enforce IMDSv2 requiring session-oriented PUT requests' },
+                { label: 'B', text: 'Disable IAM roles on EC2 entirely' },
+                { label: 'C', text: 'Increase security group ingress ports' },
+                { label: 'D', text: 'Allow public access to S3 buckets' },
+              ].map((opt) => (
+                <button
+                  key={opt.label}
+                  onClick={() => {
+                    if (opt.label === 'A') {
+                      toast.success('Correct! IMDSv2 uses session-oriented tokens to prevent SSRF vulnerabilities.');
+                      setIsPracticeModalOpen(false);
+                    } else {
+                      toast.error('Incorrect. Try again! IMDSv2 is the AWS best practice.');
+                    }
+                  }}
+                  className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[#5B3DF5] hover:bg-purple-50/50 dark:hover:bg-purple-950/20 text-left flex items-center gap-3 transition-all"
+                >
+                  <span className="w-6 h-6 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                    {opt.label}
+                  </span>
+                  <span className="text-slate-800 dark:text-slate-200 font-medium">
+                    {opt.text}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="pt-2 flex justify-end">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setPreviewCourse(null)}
+                onClick={() => setIsPracticeModalOpen(false)}
               >
-                Close
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<Play className="w-3.5 h-3.5 fill-white text-white" />}
-                onClick={() => {
-                  const targetId = previewCourse.id;
-                  setPreviewCourse(null);
-                  navigate(`/courses/${targetId}`);
-                }}
-                className="bg-[#7047EB] hover:bg-[#5E35D8]"
-              >
-                Resume Coursework
+                Exit Practice
               </Button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* MODAL 5: STUDENT PROFILE UPDATE MODAL */}
+      {isProfileModalOpen && (
+        <Modal
+          isOpen={isProfileModalOpen}
+          onClose={() => setIsProfileModalOpen(false)}
+          title="Update Student Profile"
+          description="Manage your student identity and academic track preferences"
+          maxWidth="md"
+        >
+          <form onSubmit={handleProfileSubmit} className="space-y-4 py-2">
+            {/* Avatar Preview & URL */}
+            <div className="flex items-center gap-4 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800">
+              <img
+                src={editAvatar}
+                alt="Avatar preview"
+                className="w-14 h-14 rounded-full object-cover ring-2 ring-[#5B3DF5]/30 shadow-xs"
+              />
+              <div className="flex-1">
+                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  Profile Photo URL
+                </label>
+                <input
+                  type="text"
+                  value={editAvatar}
+                  onChange={(e) => setEditAvatar(e.target.value)}
+                  className="w-full px-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-[#5B3DF5]/30 text-slate-900 dark:text-white"
+                  placeholder="https://images.unsplash.com/..."
+                />
+              </div>
+            </div>
+
+            {/* Full Name */}
+            <div>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                Full Name
+              </label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                required
+                className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-[#5B3DF5]/30 text-slate-900 dark:text-white"
+                placeholder="e.g. Maheswari"
+              />
+            </div>
+
+            {/* Email Address */}
+            <div>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                Email Address
+              </label>
+              <input
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                required
+                className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-[#5B3DF5]/30 text-slate-900 dark:text-white"
+                placeholder="student@edusphere.com"
+              />
+            </div>
+
+            {/* Bio / Track Notes */}
+            <div>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                Academic Track Bio
+              </label>
+              <textarea
+                value={editBio}
+                onChange={(e) => setEditBio(e.target.value)}
+                rows={3}
+                className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 outline-none focus:ring-2 focus:ring-[#5B3DF5]/30 text-slate-900 dark:text-white resize-none"
+                placeholder="Describe your current study tracks, certifications, and goals..."
+              />
+            </div>
+
+            <div className="pt-2 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsProfileModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="sm"
+                className="bg-black hover:bg-slate-800 text-white"
+              >
+                Save Changes
+              </Button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>
   );
 };
+
+export default StudentDashboard;

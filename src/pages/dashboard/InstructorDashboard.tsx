@@ -19,6 +19,10 @@ import {
   Mic,
   MicOff,
   VideoOff,
+  Edit3,
+  Plus,
+  Award,
+  CheckCircle2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -40,13 +44,15 @@ import { useStudents } from '@/context/StudentContext';
 import { useInstructors } from '@/context/InstructorContext';
 import { useEnrollment } from '@/context/EnrollmentContext';
 import { useLearning } from '@/context/LearningContext';
+import { CourseModal } from '@/pages/courses/CourseModal';
+import { CourseFormData } from '@/utils/validators';
 import { Card } from '@/components/common/Card';
 import { Badge } from '@/components/common/Badge';
 import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
 import { INITIAL_UPCOMING_CLASSES, INITIAL_ACTIVITIES } from '@/utils/mockData';
 import { formatDate, formatCurrency } from '@/utils/formatters';
-import { UpcomingClass, ActivityItem } from '@/types';
+import { UpcomingClass, ActivityItem, AssignmentSubmission } from '@/types';
 
 const CHART_COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#14b8a6'];
 
@@ -60,12 +66,82 @@ const MONTHLY_ANALYTICS = [
 ];
 
 export const InstructorDashboard: React.FC = () => {
-  const { user } = useAuth();
-  const { courses } = useCourses();
+  const { user, updateProfile } = useAuth();
+  const { courses, addCourse } = useCourses();
   const { students } = useStudents();
   const { instructors } = useInstructors();
   const { enrollments } = useEnrollment();
-  const { assignmentSubmissions, quizSubmissions } = useLearning();
+  const { assignmentSubmissions, quizSubmissions, assignments, gradeAssignment } = useLearning();
+
+  // Profile modal state
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: user?.name || 'Prof. Marcus Chen',
+    email: user?.email || 'instructor@edusphere.edu',
+    avatarUrl: user?.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
+    specialization: 'Senior Cybersecurity & Cloud Faculty',
+  });
+
+  const handleProfileSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profileForm.name.trim()) {
+      toast.error('Please enter a valid faculty name.');
+      return;
+    }
+    updateProfile({
+      name: profileForm.name.trim(),
+      email: profileForm.email.trim(),
+      avatarUrl: profileForm.avatarUrl.trim() || undefined,
+    });
+    toast.success('Faculty profile updated successfully!');
+    setIsProfileModalOpen(false);
+  };
+
+  // Add Course Modal State
+  const [isAddCourseModalOpen, setIsAddCourseModalOpen] = useState(false);
+
+  const handleCreateCourse = (data: CourseFormData) => {
+    addCourse({
+      ...data,
+      instructorId: user?.id || data.instructorId || 'inst-1',
+    });
+    toast.success(`Course "${data.title}" successfully created and added to your teaching catalog!`);
+    setIsAddCourseModalOpen(false);
+  };
+
+  // Inline Grading Modal State
+  const [gradingSubmission, setGradingSubmission] = useState<AssignmentSubmission | null>(null);
+  const [gradingMarks, setGradingMarks] = useState<number | string>('');
+  const [gradingFeedback, setGradingFeedback] = useState('');
+
+  const handleOpenGradingModal = (sub: AssignmentSubmission) => {
+    const asg = assignments.find((a) => a.id === sub.assignmentId);
+    setGradingSubmission(sub);
+    setGradingMarks(sub.obtainedMarks !== undefined ? sub.obtainedMarks : (asg?.totalMarks || 50));
+    setGradingFeedback(sub.feedback || 'Well-structured implementation demonstrating sound technical approach. Approved.');
+  };
+
+  const handleSaveGrade = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!gradingSubmission) return;
+    const asg = assignments.find((a) => a.id === gradingSubmission.assignmentId);
+    const maxMarks = asg?.totalMarks || 100;
+    const marksNum = Number(gradingMarks);
+
+    if (isNaN(marksNum) || marksNum < 0 || marksNum > maxMarks) {
+      toast.error(`Please enter valid marks between 0 and ${maxMarks}.`);
+      return;
+    }
+
+    if (!gradingFeedback.trim()) {
+      toast.error('Please provide constructive review feedback.');
+      return;
+    }
+
+    gradeAssignment(gradingSubmission.id, marksNum, gradingFeedback.trim());
+    toast.success(`Graded ${gradingSubmission.studentName}'s submission: awarded ${marksNum}/${maxMarks} marks!`);
+    setGradingSubmission(null);
+  };
 
   // Modal State for Live Session
   const [selectedLiveClass, setSelectedLiveClass] = useState<UpcomingClass | null>(null);
@@ -100,6 +176,14 @@ export const InstructorDashboard: React.FC = () => {
   const instructorStudentCount = useMemo(() => {
     const studentIds = new Set(instructorEnrollments.map((e) => e.studentId));
     return studentIds.size;
+  }, [instructorEnrollments]);
+
+  const pendingSubmissions = useMemo(() => {
+    return assignmentSubmissions.filter((s) => s.status === 'Submitted');
+  }, [assignmentSubmissions]);
+
+  const completedCohortCount = useMemo(() => {
+    return instructorEnrollments.filter((e) => e.status === 'Completed').length;
   }, [instructorEnrollments]);
 
   const facultyAvgRating = useMemo(() => {
@@ -202,32 +286,89 @@ export const InstructorDashboard: React.FC = () => {
       {/* ========================================================= */}
       {/* 1. FACULTY WELCOME BANNER                                 */}
       {/* ========================================================= */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-brand-600 via-brand-700 to-accent-700 text-white p-6 sm:p-8 shadow-xl shadow-brand-500/10">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-7 shadow-lg border border-slate-800">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="max-w-2xl">
             <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold tracking-wide uppercase">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md text-xs font-semibold tracking-wide uppercase text-purple-200 border border-white/10">
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                 <span>Faculty Academic Hub</span>
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-400/20 text-emerald-200 text-xs font-medium">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-medium border border-emerald-500/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Live Cloud Sync
+                <span>Active Faculty Studio</span>
               </span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Welcome back, {user?.name || 'Faculty Member'}!
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
+              Welcome back, {user?.name || 'Prof. Marcus Chen'}!
             </h1>
 
-            <p className="mt-2 text-xs sm:text-sm text-brand-100 leading-relaxed max-w-xl">
-              Faculty teaching portal. Manage course assignments, inspect active learner cohorts, review assignment submissions, and conduct live sessions.
+            <p className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl">
+              Lead Instructor · Distributed Systems & Cloud Infrastructure. Mentor active learners, grade pending cohort submissions, and host interactive live studio lectures.
             </p>
+
+            {/* Quick Human Instructor Shortcuts */}
+            <div className="flex flex-wrap items-center gap-3 mt-4 pt-1">
+              <button
+                onClick={() => setIsAddCourseModalOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-md active:scale-95 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Create New Course</span>
+              </button>
+              <button
+                onClick={() => {
+                  if (INITIAL_UPCOMING_CLASSES.length > 0) {
+                    handleOpenLiveClass(INITIAL_UPCOMING_CLASSES[0]);
+                  }
+                }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-slate-950 hover:bg-slate-100 font-bold text-xs shadow-md active:scale-95 transition-all"
+              >
+                <Video className="w-3.5 h-3.5 text-brand-600" />
+                <span>Host Next Live Class</span>
+              </button>
+              <Link
+                to="/assignments"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/15 transition-all"
+              >
+                <FileCheck2 className="w-3.5 h-3.5 text-amber-300" />
+                <span>Review {assignmentSubmissions.length + quizSubmissions.length} Submissions</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Right: Faculty Profile & Quick Actions with Real Human Photo */}
+          <div className="flex flex-col sm:flex-row lg:flex-col items-start lg:items-end gap-3.5 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <img
+                  src={user?.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80'}
+                  alt={user?.name || 'Prof. Marcus Chen'}
+                  className="w-12 h-12 rounded-full object-cover ring-2 ring-white/70 shadow-md"
+                />
+                <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-slate-900" title="Online & Available" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white leading-tight">{user?.name || 'Prof. Marcus Chen'}</p>
+                <p className="text-[11px] text-purple-200">Department of Computer Science</p>
+                <p className="text-[10px] text-slate-300">Office Hours: Mon/Wed 2-4 PM</p>
+              </div>
+            </div>
+            <div className="w-full pt-1">
+              <button
+                onClick={() => setIsProfileModalOpen(true)}
+                className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-slate-900 hover:bg-slate-100 text-xs font-bold shadow-xs transition-all active:scale-95"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Update Profile</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="absolute right-0 -bottom-10 w-72 h-72 bg-white/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute left-1/2 -top-10 w-48 h-48 bg-accent-400/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute right-0 -bottom-10 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute left-1/2 -top-10 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
       </div>
 
       {/* ========================================================= */}
@@ -293,7 +434,7 @@ export const InstructorDashboard: React.FC = () => {
           <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
             <div className="flex justify-between text-[11px] text-slate-500">
               <span>Across Teaching Catalog</span>
-              <span className="font-semibold text-blue-600">Active Cohort</span>
+              <span className="font-semibold text-emerald-600">{completedCohortCount} Graduated</span>
             </div>
             <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
               <div className="h-full bg-blue-500 rounded-full" style={{ width: '75%' }} />
@@ -380,24 +521,41 @@ export const InstructorDashboard: React.FC = () => {
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <button
+            onClick={() => setIsAddCourseModalOpen(true)}
+            className="block text-left w-full cursor-pointer"
+          >
+            <Card className="p-4 flex items-center gap-3 group h-full border-brand-200 dark:border-brand-900/50 bg-gradient-to-br from-brand-50/60 to-white dark:from-brand-950/20 dark:to-slate-900" hover>
+              <div className="p-2.5 rounded-xl bg-brand-600 text-white group-hover:scale-105 transition-transform shrink-0 shadow-xs">
+                <Plus className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                  Create Course
+                </p>
+                <p className="text-[11px] text-brand-600 dark:text-brand-400 font-semibold">Author track</p>
+              </div>
+            </Card>
+          </button>
+
           <Link to="/courses" className="block">
-            <Card className="p-4 flex items-center gap-3 group" hover>
-              <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400 group-hover:scale-105 transition-transform">
+            <Card className="p-4 flex items-center gap-3 group h-full" hover>
+              <div className="p-2.5 rounded-xl bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400 group-hover:scale-105 transition-transform shrink-0">
                 <GraduationCap className="w-5 h-5" />
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
-                  My Teaching Courses
+                  Teaching Catalog
                 </p>
-                <p className="text-[11px] text-slate-400">Manage curriculum</p>
+                <p className="text-[11px] text-slate-400">Manage tracks</p>
               </div>
             </Card>
           </Link>
 
           <Link to="/students" className="block">
-            <Card className="p-4 flex items-center gap-3 group" hover>
-              <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform">
+            <Card className="p-4 flex items-center gap-3 group h-full" hover>
+              <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 group-hover:scale-105 transition-transform shrink-0">
                 <Users className="w-5 h-5" />
               </div>
               <div>
@@ -410,22 +568,24 @@ export const InstructorDashboard: React.FC = () => {
           </Link>
 
           <Link to="/assignments" className="block">
-            <Card className="p-4 flex items-center gap-3 group" hover>
-              <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform">
+            <Card className="p-4 flex items-center gap-3 group h-full" hover>
+              <div className="p-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 group-hover:scale-105 transition-transform shrink-0">
                 <FileCheck2 className="w-5 h-5" />
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-900 dark:text-slate-100">
                   Grade Submissions
                 </p>
-                <p className="text-[11px] text-slate-400">Review assignments</p>
+                <p className="text-[11px] text-purple-600 dark:text-purple-400 font-semibold">
+                  {pendingSubmissions.length} Pending
+                </p>
               </div>
             </Card>
           </Link>
 
           <Link to="/progress" className="block">
-            <Card className="p-4 flex items-center gap-3 group" hover>
-              <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
+            <Card className="p-4 flex items-center gap-3 group h-full" hover>
+              <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform shrink-0">
                 <LineChartIcon className="w-5 h-5" />
               </div>
               <div>
@@ -438,6 +598,171 @@ export const InstructorDashboard: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      {/* ========================================================= */}
+      {/* 4. STUDENT COHORT PROGRESS TRACKING & MILESTONES          */}
+      {/* ========================================================= */}
+      <Card className="p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <LineChartIcon className="w-4 h-4 text-brand-600" />
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Student Cohort Learning Progress & Milestones
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Live syllabus completion and module progress across your assigned teaching tracks
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/progress"
+            className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
+          >
+            Detailed Progress Tracker <ExternalLink className="w-3 h-3" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {instructorAssignedCourses.map((c) => {
+            const courseEnr = enrollments.filter((e) => e.courseId === c.id);
+            const enrCount = courseEnr.length;
+            const completedCount = courseEnr.filter((e) => e.status === 'Completed').length;
+            const avgProgress =
+              enrCount > 0
+                ? Math.round(
+                    courseEnr.reduce((acc, e) => acc + (e.progressPercentage || 0), 0) / enrCount
+                  )
+                : 75;
+
+            return (
+              <div
+                key={c.id}
+                className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-3 hover:border-brand-500/40 transition-all flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <Badge variant="blue" size="sm">
+                      {c.category}
+                    </Badge>
+                    <span className="text-[11px] font-bold text-brand-600 dark:text-brand-400">
+                      {avgProgress}% Cohort Avg
+                    </span>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 line-clamp-1">
+                    {c.title}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                    {c.duration} · {c.level}
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-brand-500 to-emerald-500 rounded-full transition-all duration-500"
+                      style={{ width: `${avgProgress}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span>{enrCount || 12} Active Learners</span>
+                    <span className="text-emerald-600 font-semibold">{completedCount || 5} Graduated</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
+      {/* ========================================================= */}
+      {/* 5. PENDING STUDENT SUBMISSIONS TO GRADE                   */}
+      {/* ========================================================= */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <FileCheck2 className="w-4 h-4 text-amber-500" />
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Pending Student Submissions Awaiting Evaluation
+              </h3>
+              <p className="text-[11px] text-slate-400">
+                Submitted coursework from your active cohorts requiring review, scoring, and rubrics feedback
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/assignments"
+            className="text-xs font-bold text-brand-600 dark:text-brand-400 hover:underline flex items-center gap-1"
+          >
+            All Submissions ({assignmentSubmissions.length}) <ExternalLink className="w-3 h-3" />
+          </Link>
+        </div>
+
+        {pendingSubmissions.length === 0 ? (
+          <div className="p-6 text-center rounded-2xl bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800">
+            <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+              All submissions are evaluated!
+            </p>
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              No student submissions are currently awaiting grading.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {pendingSubmissions.slice(0, 2).map((sub) => {
+              const asg = assignments.find((a) => a.id === sub.assignmentId);
+
+              return (
+                <div
+                  key={sub.id}
+                  className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex flex-col justify-between gap-3 hover:border-amber-300 dark:hover:border-amber-700/50 transition-all"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Badge variant="amber" size="sm" dot>
+                        Needs Review
+                      </Badge>
+                      <span className="text-[10px] text-slate-400">
+                        Submitted: {formatDate(sub.submittedAt)}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                        {asg?.title || 'Coursework Assignment'}
+                      </h4>
+                      <p className="text-[11px] text-brand-600 dark:text-brand-400 font-semibold mt-0.5">
+                        Student: {sub.studentName}
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-slate-900 text-emerald-400 font-mono text-[11px] max-h-20 overflow-hidden line-clamp-2">
+                      {sub.content}
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-200/60 dark:border-slate-700/60 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-500">
+                      Max: {asg?.totalMarks || 50} pts
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      className="bg-brand-600 hover:bg-brand-700"
+                      onClick={() => handleOpenGradingModal(sub)}
+                      leftIcon={<Award className="w-3.5 h-3.5" />}
+                    >
+                      Grade Now
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Card>
 
       {/* ========================================================= */}
       {/* 4. VISUAL ANALYTICS SECTION                                */}
@@ -647,6 +972,83 @@ export const InstructorDashboard: React.FC = () => {
             </div>
           </Card>
 
+          {/* Real Human Teacher Interaction: Student Mentorship & Inquiries */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-purple-600" />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    Student Mentorship & Office Hours Q&A
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    Direct academic inquiries and project feedback requests from enrolled students
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-300">
+                2 New Questions
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {[
+                {
+                  id: 'q-1',
+                  student: 'Maheswari',
+                  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100',
+                  track: 'Cybersecurity Masterclass',
+                  time: '25 mins ago',
+                  question: 'Could you clarify AWS IAM cross-account trust policies in Lab 3 before our next class?',
+                },
+                {
+                  id: 'q-2',
+                  student: 'John Millar',
+                  avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100',
+                  track: 'Cloud Architecture & DevOps',
+                  time: '2 hours ago',
+                  question: 'Submitted Terraform zero-trust modules. Ready for code review when you have office hours.',
+                },
+              ].map((item) => (
+                <div
+                  key={item.id}
+                  className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-purple-300 dark:hover:border-purple-800 transition-all"
+                >
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={item.avatar}
+                      alt={item.student}
+                      className="w-9 h-9 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700 flex-shrink-0"
+                    />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">
+                          {item.student}
+                        </span>
+                        <span className="text-[10px] text-purple-600 dark:text-purple-400 font-semibold bg-purple-50 dark:bg-purple-950 px-2 py-0.5 rounded-md">
+                          {item.track}
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {item.time}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                        "{item.question}"
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => toast.success(`Replied to ${item.student}. Response sent to student messaging portal!`)}
+                    className="self-end sm:self-auto px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs active:scale-95 transition-all flex-shrink-0"
+                  >
+                    Reply in Studio
+                  </button>
+                </div>
+              ))}
+            </div>
+          </Card>
+
           {/* Top Rated Courses Preview */}
           <Card className="p-5">
             <div className="flex items-center justify-between mb-4">
@@ -818,67 +1220,103 @@ export const InstructorDashboard: React.FC = () => {
           maxWidth="2xl"
         >
           <div className="space-y-4">
-            <div className="relative aspect-video rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex flex-col items-center justify-center text-white">
-              <div className="absolute top-3 left-3 flex items-center gap-2">
-                <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-rose-600/90 text-white text-[10px] font-bold uppercase tracking-wider animate-pulse">
-                  <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-                  Live Broadcast
-                </span>
-                <span className="px-2 py-0.5 rounded bg-black/60 backdrop-blur-md text-[10px] text-slate-300">
-                  HD 1080p
-                </span>
-              </div>
+            <div className="relative aspect-video rounded-2xl overflow-hidden bg-slate-950 border border-slate-800 flex flex-col justify-between text-white shadow-2xl">
+              {/* Real Human Professor Video Stream */}
+              {!isVideoOff ? (
+                <img
+                  src="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=1200&auto=format&fit=crop&q=80"
+                  alt={selectedLiveClass.instructorName}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <div className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center gap-3">
+                  <img
+                    src={user?.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80'}
+                    alt={selectedLiveClass.instructorName}
+                    className="w-20 h-20 rounded-full object-cover ring-4 ring-slate-700 shadow-xl"
+                  />
+                  <p className="text-xs font-semibold text-slate-300">Camera Paused · Audio Streaming Live</p>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/60 pointer-events-none" />
 
-              <div className="absolute top-3 right-3 text-[11px] font-medium text-slate-300 bg-black/60 px-2.5 py-1 rounded-md">
-                {selectedLiveClass.durationMinutes} mins session
-              </div>
+              {/* Top HUD */}
+              <div className="relative z-10 p-3 sm:p-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-600 text-white text-[10px] font-bold uppercase tracking-wider shadow-md animate-pulse">
+                    <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                    Live Broadcast
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-[10px] font-mono font-bold text-slate-200 border border-white/10">
+                    HD 1080p
+                  </span>
+                </div>
 
-              <div className="flex flex-col items-center gap-3 text-center z-10 px-4">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-brand-500 to-accent-500 flex items-center justify-center text-2xl font-bold ring-4 ring-white/20">
-                    {selectedLiveClass.instructorName.slice(0, 1)}
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-full text-[11px] font-medium text-slate-200 border border-white/10">
+                    <Users className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>48 Students Connected</span>
                   </div>
-                  <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-950" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-sm text-slate-100">
-                    {selectedLiveClass.instructorName}
-                  </h4>
-                  <p className="text-xs text-slate-400">Host • Presenting Course Audio & Screen</p>
-                </div>
-                <div className="flex items-center gap-1 h-4">
-                  <span className="w-1 h-3 bg-brand-400 rounded-full animate-bounce" />
-                  <span className="w-1 h-5 bg-brand-400 rounded-full animate-bounce [animation-delay:0.15s]" />
-                  <span className="w-1 h-2 bg-brand-400 rounded-full animate-bounce [animation-delay:0.3s]" />
-                  <span className="w-1 h-4 bg-brand-400 rounded-full animate-bounce [animation-delay:0.45s]" />
                 </div>
               </div>
 
-              <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/90 via-black/50 to-transparent flex items-center justify-between">
+              {/* Lower HUD: Instructor Info Overlay */}
+              <div className="relative z-10 px-4 py-2 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <div>
+                    <p className="text-xs font-bold text-white leading-tight">
+                      {selectedLiveClass.instructorName} (Presenting)
+                    </p>
+                    <p className="text-[10px] text-slate-300">
+                      Screen Share: Cloud Architecture & Incident Response Lab
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-300 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md border border-white/10">
+                  {selectedLiveClass.durationMinutes} mins session
+                </div>
+              </div>
+
+              {/* Bottom Control Bar */}
+              <div className="relative z-10 p-3 bg-gradient-to-t from-black/95 to-transparent flex items-center justify-between border-t border-white/10">
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setIsMicMuted(!isMicMuted)}
-                    className={`p-2 rounded-lg text-xs transition-colors ${
-                      isMicMuted ? 'bg-rose-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white'
+                    onClick={() => {
+                      setIsMicMuted(!isMicMuted);
+                      toast.info(isMicMuted ? 'Microphone unmuted (HD 48kHz)' : 'Microphone muted');
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      isMicMuted
+                        ? 'bg-rose-600 text-white'
+                        : 'bg-white/15 hover:bg-white/25 text-white'
                     }`}
                     title={isMicMuted ? 'Unmute microphone' : 'Mute microphone'}
                   >
                     {isMicMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    <span>{isMicMuted ? 'Muted' : 'Mic On'}</span>
                   </button>
                   <button
-                    onClick={() => setIsVideoOff(!isVideoOff)}
-                    className={`p-2 rounded-lg text-xs transition-colors ${
-                      isVideoOff ? 'bg-rose-600 text-white' : 'bg-white/10 hover:bg-white/20 text-white'
+                    onClick={() => {
+                      setIsVideoOff(!isVideoOff);
+                      toast.info(isVideoOff ? 'Webcam video started' : 'Webcam video stopped');
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                      isVideoOff
+                        ? 'bg-rose-600 text-white'
+                        : 'bg-white/15 hover:bg-white/25 text-white'
                     }`}
                     title={isVideoOff ? 'Start camera' : 'Stop camera'}
                   >
                     {isVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                    <span>{isVideoOff ? 'Cam Off' : 'Cam On'}</span>
                   </button>
                 </div>
 
                 <div className="text-[11px] text-slate-300">
                   Virtual Room ID:{' '}
-                  <span className="font-mono text-brand-300">
+                  <span className="font-mono text-purple-300 font-bold">
                     {selectedLiveClass.id.toUpperCase()}
                   </span>
                 </div>
@@ -931,6 +1369,188 @@ export const InstructorDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* Instructor Profile Update Modal */}
+      <Modal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        title="Update Faculty Profile"
+        description="Update your faculty profile, teaching specialization, and avatar credentials."
+      >
+        <form onSubmit={handleProfileSubmit} className="space-y-4 py-2">
+          <div className="flex items-center gap-3 p-3 bg-brand-50 dark:bg-brand-950/30 rounded-2xl border border-brand-100 dark:border-brand-900/40">
+            <img
+              src={profileForm.avatarUrl || user?.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80'}
+              alt={profileForm.name}
+              className="w-12 h-12 rounded-full object-cover ring-2 ring-brand-400 shadow-sm"
+            />
+            <div>
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{profileForm.name || 'Faculty Member'}</p>
+              <p className="text-[11px] text-brand-600 dark:text-brand-400 font-semibold uppercase tracking-wider">Faculty & Mentor</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Full Name
+            </label>
+            <input
+              type="text"
+              value={profileForm.name}
+              onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="e.g. Prof. Sarah Jenkins"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={profileForm.email}
+              onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="e.g. s.jenkins@edusphere.edu"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Subject Specialization
+            </label>
+            <input
+              type="text"
+              value={profileForm.specialization}
+              onChange={(e) => setProfileForm({ ...profileForm, specialization: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="e.g. Cloud Security & Cryptography"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Avatar Image URL
+            </label>
+            <input
+              type="url"
+              value={profileForm.avatarUrl}
+              onChange={(e) => setProfileForm({ ...profileForm, avatarUrl: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="https://images.unsplash.com/..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsProfileModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              className="bg-brand-600 hover:bg-brand-700"
+            >
+              Save Profile
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Create / Add Course Modal for Faculty */}
+      <CourseModal
+        isOpen={isAddCourseModalOpen}
+        onClose={() => setIsAddCourseModalOpen(false)}
+        onSubmit={handleCreateCourse}
+      />
+
+      {/* Faculty Inline Grading Modal */}
+      {gradingSubmission && (
+        <Modal
+          isOpen={!!gradingSubmission}
+          onClose={() => setGradingSubmission(null)}
+          title={`Grade Submission · ${gradingSubmission.studentName}`}
+          description={`Course: ${
+            assignments.find((a) => a.id === gradingSubmission.assignmentId)?.courseName || 'Cloud Architecture'
+          }`}
+          maxWidth="lg"
+        >
+          <form onSubmit={handleSaveGrade} className="space-y-4 py-1">
+            <div className="flex items-center justify-between p-3.5 bg-brand-50 dark:bg-brand-950/30 rounded-2xl border border-brand-100 dark:border-brand-900/40 text-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-brand-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+                  {gradingSubmission.studentName.charAt(0)}
+                </div>
+                <div>
+                  <p className="font-bold text-slate-900 dark:text-slate-100">{gradingSubmission.studentName}</p>
+                  <p className="text-[11px] text-brand-600 dark:text-brand-400 font-mono">ID: {gradingSubmission.studentId}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-[11px] text-slate-400 block">Submitted On</span>
+                <span className="font-semibold text-slate-700 dark:text-slate-300">
+                  {formatDate(gradingSubmission.submittedAt)}
+                </span>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Student Submitted Work / Repository
+              </label>
+              <div className="p-3 rounded-xl bg-slate-900 text-emerald-400 font-mono text-xs max-h-36 overflow-y-auto whitespace-pre-wrap border border-slate-800">
+                {gradingSubmission.content}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Marks Awarded (Max: {assignments.find((a) => a.id === gradingSubmission.assignmentId)?.totalMarks || 50})
+              </label>
+              <input
+                type="number"
+                min={0}
+                max={assignments.find((a) => a.id === gradingSubmission.assignmentId)?.totalMarks || 100}
+                value={gradingMarks}
+                onChange={(e) => setGradingMarks(e.target.value)}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Faculty Review & Constructive Feedback
+              </label>
+              <textarea
+                rows={3}
+                value={gradingFeedback}
+                onChange={(e) => setGradingFeedback(e.target.value)}
+                placeholder="Write actionable comments, code critique, and rubric evaluation for the student..."
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                required
+              />
+            </div>
+
+            <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <Button type="button" variant="outline" size="sm" onClick={() => setGradingSubmission(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" size="sm" className="bg-brand-600 hover:bg-brand-700" leftIcon={<Award className="w-3.5 h-3.5" />}>
+                Record Grade & Save
+              </Button>
+            </div>
+          </form>
         </Modal>
       )}
     </div>

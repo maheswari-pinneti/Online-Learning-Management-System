@@ -6,8 +6,10 @@ import {
   CheckSquare,
   Square,
   Award,
+  Calendar,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { useAuth } from '@/context/AuthContext';
 import { useEnrollment } from '@/context/EnrollmentContext';
 import { useCourses } from '@/context/CourseContext';
 import { useStudents } from '@/context/StudentContext';
@@ -25,6 +27,12 @@ export const ProgressTracker: React.FC = () => {
   const { courses } = useCourses();
   const { students } = useStudents();
   const { toggleLessonCompletion } = useLearning();
+  const { role } = useAuth();
+  const isStudent = role === 'student';
+
+  const [rsvpEvents, setRsvpEvents] = useState<Record<string, boolean>>({
+    'event-1': true,
+  });
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStudentFilter, setSelectedStudentFilter] = useState('All');
@@ -91,14 +99,131 @@ export const ProgressTracker: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header bar */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-          Learning Progress & Milestone Tracker
-        </h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-          Monitor syllabus progress percentages, completed vs pending lessons, and verify certificate eligibility
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+            {isStudent ? 'Campus Events & Learning Milestones' : 'Student Progress & Cohort Tracker'}
+          </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            {isStudent
+              ? 'Upcoming live masterclasses, collaborative hack-a-thons, and your active learning milestones.'
+              : 'Monitor enrolled student syllabus progress, completed vs pending lessons, and cohort completion rates'}
+          </p>
+        </div>
       </div>
+
+      {/* Student Featured Upcoming Events Hub */}
+      {isStudent && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-[#5B3DF5]" />
+              <span>Upcoming Live Campus Events</span>
+            </h2>
+            <span className="text-xs text-slate-400 font-medium">3 Events Scheduled</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Event 1 */}
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-[#5B3DF5] bg-purple-50 dark:bg-purple-950/50 px-2.5 py-1 rounded-full">
+                    8 DEC 2026
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-md">
+                    CONFIRMED
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                    Cyber Genius Masterclass With Microsoft
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Live keynote & Azure Sentinel incident response demo by Microsoft Cloud Architecture fellows.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                <span className="text-slate-400">10:00 AM PST</span>
+                <button
+                  onClick={() => toast.success('You have confirmed your seat in the live broadcast room.')}
+                  className="px-3 py-1.5 rounded-full bg-emerald-600 text-white font-bold text-xs"
+                >
+                  Pass Claimed
+                </button>
+              </div>
+            </div>
+
+            {/* Event 2 */}
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-indigo-600 bg-indigo-50 dark:bg-indigo-950/50 px-2.5 py-1 rounded-full">
+                    15 DEC 2026
+                  </span>
+                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-950/50 px-2 py-0.5 rounded-md">
+                    TEAM EVENT
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                    Global AI Defense Student Hack-a-thon
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Join circular breakout pods with global students to build autonomous SIEM triage bots.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                <span className="text-slate-400">48h Sprint</span>
+                <button
+                  onClick={() => {
+                    setRsvpEvents((prev) => ({ ...prev, 'event-2': !prev['event-2'] }));
+                    toast.success(rsvpEvents['event-2'] ? 'Left hackathon queue.' : 'Registered team for the Global AI Hack-a-thon!');
+                  }}
+                  className={`px-3 py-1.5 rounded-full font-bold text-xs transition-colors ${
+                    rsvpEvents['event-2'] ? 'bg-slate-200 text-slate-700' : 'bg-black text-white hover:bg-slate-800'
+                  }`}
+                >
+                  {rsvpEvents['event-2'] ? 'Team Registered' : 'Join Circle'}
+                </button>
+              </div>
+            </div>
+
+            {/* Event 3 */}
+            <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xs hover:shadow-md transition-all flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-amber-600 bg-amber-50 dark:bg-amber-950/50 px-2.5 py-1 rounded-full">
+                    20 DEC 2026
+                  </span>
+                  <span className="text-[10px] font-bold text-purple-600 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded-md">
+                    Q&A LIVE
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-snug">
+                    Lead Faculty Cloud Security AMA
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Open microphone session with course instructors to review portfolio projects & technical interviews.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                <span className="text-slate-400">2:00 PM PST</span>
+                <button
+                  onClick={() => toast.success('Added Faculty AMA to Google Calendar & Outlook.')}
+                  className="px-3 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs"
+                >
+                  Add Calendar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Global Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
