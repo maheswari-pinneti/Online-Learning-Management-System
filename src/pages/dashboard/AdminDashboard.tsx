@@ -20,6 +20,8 @@ import {
   MicOff,
   VideoOff,
   Copy,
+  Edit3,
+  Shield,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -85,12 +87,36 @@ const DONUT_DATA = [
 ];
 
 export const AdminDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
   const { courses } = useCourses();
   const { students } = useStudents();
   const { instructors } = useInstructors();
   const { enrollments } = useEnrollment();
   const navigate = useNavigate();
+
+  // Profile modal state
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: user?.name || 'Administrator',
+    email: user?.email || 'admin@edusphere.edu',
+    avatarUrl: user?.avatarUrl || '',
+    department: 'Institutional Academic Office',
+  });
+
+  const handleProfileSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profileForm.name.trim()) {
+      toast.error('Please enter a valid administrator name.');
+      return;
+    }
+    updateProfile({
+      name: profileForm.name.trim(),
+      email: profileForm.email.trim(),
+      avatarUrl: profileForm.avatarUrl.trim() || undefined,
+    });
+    toast.success('Administrator profile updated successfully!');
+    setIsProfileModalOpen(false);
+  };
 
   // Selection state for star students table
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>(['s-2']);
@@ -171,14 +197,61 @@ export const AdminDashboard: React.FC = () => {
       {/* ========================================================= */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         {/* Left: Welcome Title & Subtitle */}
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Welcome back, {user?.name || 'Administrator'}.
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Navigate the future of education with Schoooli &bull;{' '}
-            <span className="font-semibold text-[#7047EB]">Institutional Learning Analytics</span>
-          </p>
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <img
+              src={user?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+              alt={user?.name || 'Admin'}
+              className="w-12 h-12 rounded-2xl object-cover ring-2 ring-purple-500/30 shadow-sm"
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                  Welcome back, {user?.name || 'Administrator'}.
+                </h1>
+                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-[#7047EB] dark:text-purple-300 text-[10px] font-bold uppercase tracking-wider">
+                  <Shield className="w-3 h-3" />
+                  Admin
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+                Navigate the future of education with Schoooli &bull;{' '}
+                <span className="font-semibold text-[#7047EB]">Institutional Learning Analytics</span>
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Admin Actions Pill Bar */}
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 text-[#7047EB] dark:text-purple-300 text-xs font-bold transition-all active:scale-95 border border-purple-200/60 dark:border-purple-800/40"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Update Profile</span>
+            </button>
+            <Link
+              to="/courses"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Courses</span>
+            </Link>
+            <Link
+              to="/students"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Students</span>
+            </Link>
+            <Link
+              to="/reports"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all"
+            >
+              <Award className="w-3.5 h-3.5" />
+              <span>Reports</span>
+            </Link>
+          </div>
         </div>
 
         {/* Right: 3 Metric Cards side-by-side */}
@@ -970,6 +1043,101 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      </Modal>
+
+      {/* Admin Profile Update Modal */}
+      <Modal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        title="Update Administrator Profile"
+        description="Modify administrator credentials, display name, and avatar across EduSphere."
+      >
+        <form onSubmit={handleProfileSubmit} className="space-y-4 py-2">
+          <div className="flex items-center gap-3 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-2xl border border-purple-100 dark:border-purple-900/40">
+            <img
+              src={profileForm.avatarUrl || user?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+              alt={profileForm.name}
+              className="w-12 h-12 rounded-full object-cover ring-2 ring-purple-400 shadow-sm"
+            />
+            <div>
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-100">{profileForm.name || 'Administrator'}</p>
+              <p className="text-[11px] text-[#7047EB] dark:text-purple-400 font-semibold uppercase tracking-wider">Super Administrator</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Full Name
+            </label>
+            <input
+              type="text"
+              value={profileForm.name}
+              onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              placeholder="e.g. Dr. Alex Mercer"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={profileForm.email}
+              onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              placeholder="e.g. admin@edusphere.edu"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Department / Office
+            </label>
+            <input
+              type="text"
+              value={profileForm.department}
+              onChange={(e) => setProfileForm({ ...profileForm, department: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              placeholder="e.g. Academic Registry"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Avatar Image URL
+            </label>
+            <input
+              type="url"
+              value={profileForm.avatarUrl}
+              onChange={(e) => setProfileForm({ ...profileForm, avatarUrl: e.target.value })}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+              placeholder="https://images.unsplash.com/..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsProfileModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              className="bg-[#7047EB] hover:bg-[#5e38d4]"
+            >
+              Save Profile
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );
