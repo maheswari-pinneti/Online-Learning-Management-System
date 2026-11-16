@@ -11,10 +11,18 @@ import {
   Edit,
   Eye,
   RefreshCw,
+  Play,
+  Pause,
+  Sparkles,
+  UserPlus,
+  Video,
+  FileText,
+  CheckCircle2,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useCourses } from '@/context/CourseContext';
 import { useAuth } from '@/context/AuthContext';
+import { useEnrollment } from '@/context/EnrollmentContext';
 import { Course } from '@/types';
 import { CourseFormData } from '@/utils/validators';
 import { Card } from '@/components/common/Card';
@@ -29,7 +37,8 @@ import { Modal } from '@/components/common/Modal';
 export const CourseList: React.FC = () => {
   const { courses, isLoading, error, addCourse, updateCourse, deleteCourse, refreshCourses } =
     useCourses();
-  const { role } = useAuth();
+  const { role, user } = useAuth();
+  const { isStudentEnrolled, enrollStudent } = useEnrollment();
   const [searchParams] = useSearchParams();
 
   // Filters & State
@@ -45,7 +54,36 @@ export const CourseList: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null);
+  const [activeLessonCourse, setActiveLessonCourse] = useState<Course | null>(null);
+  const [registeringCourse, setRegisteringCourse] = useState<Course | null>(null);
+  const [activeModalVideoIndex, setActiveModalVideoIndex] = useState(0);
+  const [modalVideoTab, setModalVideoTab] = useState<'recordings' | 'references'>('recordings');
+  const [modalIsPlaying, setModalIsPlaying] = useState(false);
+  const [modalPlaybackSpeed, setModalPlaybackSpeed] = useState<'1x' | '1.25x' | '1.5x' | '2x'>('1x');
+  const [modalProgress, setModalProgress] = useState(28);
 
+  // 3-second human-friendly skeleton loader
+  const isTestEnv = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+  const [isSkeletonLoading, setIsSkeletonLoading] = useState(!isTestEnv);
+
+  React.useEffect(() => {
+    if (isTestEnv) return;
+    const timer = setTimeout(() => {
+      setIsSkeletonLoading(false);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [isTestEnv]);
+
+  const handleSyncCatalog = () => {
+    setIsSkeletonLoading(true);
+    refreshCourses();
+    setTimeout(() => {
+      setIsSkeletonLoading(false);
+      toast.info('Catalog re-synced with external API.');
+    }, 3000);
+  };
+
+  const isStudent = role === 'student';
   const canManageCourses = role === 'admin' || role === 'instructor';
 
   // Categories list derived dynamically
@@ -109,16 +147,28 @@ export const CourseList: React.FC = () => {
     }
   };
 
+  const handleConfirmRegister = (c: Course) => {
+    if (!user) {
+      toast.error('Please log in to register for courses.');
+      return;
+    }
+    enrollStudent(user.id, c.id);
+    toast.success(`Registered successfully for "${c.title}"! Course added to your learning dashboard.`);
+    setRegisteringCourse(null);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-            Course Management
+            {isStudent ? 'Lessons & Curriculums' : 'Course Management'}
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Browse, manage, and curate curriculum offerings across faculties
+            {isStudent
+              ? 'Explore active curriculum tracks, interactive cybersecurity modules, and hands-on video masterclasses.'
+              : 'Browse, manage, and curate curriculum offerings across faculties'}
           </p>
         </div>
 
@@ -126,11 +176,8 @@ export const CourseList: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              refreshCourses();
-              toast.info('Catalog re-synced with external API.');
-            }}
-            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />}
+            onClick={handleSyncCatalog}
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isLoading || isSkeletonLoading ? 'animate-spin' : ''}`} />}
           >
             Sync Catalog
           </Button>
@@ -147,6 +194,42 @@ export const CourseList: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Student Featured Active Lesson Banner */}
+      {isStudent && (
+        <div className="p-5 sm:p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-purple-950 to-slate-900 text-white shadow-md relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-2 relative z-10 max-w-xl">
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-extrabold text-[10px] tracking-wider uppercase">
+                ACTIVE LESSON
+              </span>
+              <span className="text-xs text-purple-200 font-semibold flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                CyberGenius Track · Episode 3
+              </span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+              Inside the Breach - They're in the cloud
+            </h2>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Progress: 17% completed. Learn multi-tenant AWS cloud infiltration detection, GuardDuty anomaly tracing, and automated IAM mitigation.
+            </p>
+          </div>
+
+          <div className="relative z-10 flex items-center gap-3">
+            <button
+              onClick={() => {
+                const targetCourse = courses.find((c) => c.title.toLowerCase().includes('react')) || courses[0];
+                setActiveLessonCourse(targetCourse);
+              }}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white text-slate-950 hover:bg-slate-100 font-bold text-xs shadow-md active:scale-95 transition-all"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span>Resume Lesson</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Filter & Search Bar */}
       <Card className="p-4">
@@ -255,8 +338,11 @@ export const CourseList: React.FC = () => {
       )}
 
       {/* Course Catalog Content */}
-      {isLoading ? (
+      {isLoading || isSkeletonLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <CourseCardSkeleton />
+          <CourseCardSkeleton />
+          <CourseCardSkeleton />
           <CourseCardSkeleton />
           <CourseCardSkeleton />
           <CourseCardSkeleton />
@@ -330,6 +416,29 @@ export const CourseList: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    {isStudent && user && (
+                      isStudentEnrolled(user.id, course.id) ? (
+                        <button
+                          onClick={() => {
+                            setActiveLessonCourse(course);
+                            setActiveModalVideoIndex(0);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 text-[#5B3DF5] dark:text-purple-300 font-bold text-xs transition-colors"
+                        >
+                          <Play className="w-3 h-3 fill-current" />
+                          <span>Watch Videos</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setRegisteringCourse(course)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-950 font-bold text-xs transition-all shadow-xs active:scale-95"
+                        >
+                          <UserPlus className="w-3 h-3" />
+                          <span>Register</span>
+                        </button>
+                      )
+                    )}
+
                     <Link to={`/courses/${course.id}`}>
                       <Button variant="ghost" size="sm" className="p-1.5" title="View Details">
                         <Eye className="w-4 h-4" />
@@ -418,9 +527,33 @@ export const CourseList: React.FC = () => {
                       ${c.price.toFixed(2)}
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {isStudent && user && (
+                          isStudentEnrolled(user.id, c.id) ? (
+                            <button
+                              onClick={() => {
+                                setActiveLessonCourse(c);
+                                setActiveModalVideoIndex(0);
+                                setModalVideoTab('recordings');
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 text-[#5B3DF5] dark:text-purple-300 font-bold text-[11px] transition-colors"
+                            >
+                              <Play className="w-3 h-3 fill-current" />
+                              <span>Videos</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setRegisteringCourse(c)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-950 font-bold text-[11px] transition-all shadow-xs"
+                            >
+                              <UserPlus className="w-3 h-3" />
+                              <span>Register</span>
+                            </button>
+                          )
+                        )}
+
                         <Link to={`/courses/${c.id}`}>
-                          <Button variant="ghost" size="sm" className="p-1.5">
+                          <Button variant="ghost" size="sm" className="p-1.5" title="View Details">
                             <Eye className="w-3.5 h-3.5" />
                           </Button>
                         </Link>
@@ -494,6 +627,412 @@ export const CourseList: React.FC = () => {
           </Button>
         </div>
       </Modal>
+
+      {/* Video Recordings & Reference Library Modal for Students */}
+      {activeLessonCourse && (
+        <Modal
+          isOpen={!!activeLessonCourse}
+          onClose={() => {
+            setActiveLessonCourse(null);
+            setModalIsPlaying(false);
+          }}
+          title={`Course Media Library: ${activeLessonCourse.title}`}
+          description={`Instructor: ${activeLessonCourse.instructorName} · Track: ${activeLessonCourse.category}`}
+          maxWidth="2xl"
+        >
+          <div className="space-y-4 py-2">
+            {/* Interactive Video Player */}
+            <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 flex flex-col justify-between shadow-xl group border border-slate-800">
+              <img
+                src={activeLessonCourse.thumbnail}
+                alt={activeLessonCourse.title}
+                className="absolute inset-0 w-full h-full object-cover opacity-50"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/30 to-black/70" />
+
+              {/* Player Top HUD */}
+              <div className="relative z-10 p-4 flex items-center justify-between text-white">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-full bg-[#5B3DF5] text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                    <Video className="w-3 h-3" />
+                    {modalVideoTab === 'recordings' ? 'Lecture Recording' : 'Reference Video'}
+                  </span>
+                  <span className="text-xs font-semibold text-slate-200 truncate max-w-xs">
+                    {modalVideoTab === 'recordings'
+                      ? `Session ${activeModalVideoIndex + 1}: Live Cohort Masterclass`
+                      : `Reference Guide #${activeModalVideoIndex + 1}: Architecture & Deep Dive`}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold bg-white/10 backdrop-blur-md px-2 py-0.5 rounded text-slate-200">
+                    1080p HD
+                  </span>
+                </div>
+              </div>
+
+              {/* Player Center Play/Pause Trigger */}
+              <div className="relative z-10 flex items-center justify-center my-auto">
+                <button
+                  onClick={() => {
+                    setModalIsPlaying(!modalIsPlaying);
+                    toast.info(
+                      modalIsPlaying
+                        ? 'Video stream paused'
+                        : 'Streaming lecture with live interactive checkpoints...'
+                    );
+                  }}
+                  className="w-16 h-16 rounded-full bg-white/95 text-slate-950 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-2xl hover:bg-[#5B3DF5] hover:text-white"
+                >
+                  {modalIsPlaying ? (
+                    <Pause className="w-7 h-7 fill-current" />
+                  ) : (
+                    <Play className="w-7 h-7 fill-current ml-1" />
+                  )}
+                </button>
+              </div>
+
+              {/* Player Bottom Control Bar */}
+              <div className="relative z-10 p-3 sm:p-4 bg-gradient-to-t from-black/90 to-transparent space-y-2">
+                {/* Scrubber slider */}
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={modalProgress}
+                    onChange={(e) => setModalProgress(Number(e.target.value))}
+                    className="w-full h-1 bg-white/30 rounded-lg appearance-none cursor-pointer accent-[#5B3DF5]"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-white text-xs">
+                  <div className="flex items-center gap-2 font-mono text-[11px] text-slate-300">
+                    <span>{Math.floor((modalProgress * 48) / 100)}:15</span>
+                    <span>/</span>
+                    <span>48:00</span>
+                  </div>
+
+                  {/* Playback speed selector */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-slate-400 font-medium mr-1">Speed:</span>
+                    {(['1x', '1.25x', '1.5x', '2x'] as const).map((spd) => (
+                      <button
+                        key={spd}
+                        onClick={() => {
+                          setModalPlaybackSpeed(spd);
+                          toast.info(`Playback speed set to ${spd}`);
+                        }}
+                        className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                          modalPlaybackSpeed === spd
+                            ? 'bg-[#5B3DF5] text-white shadow-xs'
+                            : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                        }`}
+                      >
+                        {spd}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Media Selector Tabs: Recordings vs Reference Videos */}
+            <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+              <button
+                onClick={() => {
+                  setModalVideoTab('recordings');
+                  setActiveModalVideoIndex(0);
+                }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  modalVideoTab === 'recordings'
+                    ? 'bg-[#5B3DF5] text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Video className="w-3.5 h-3.5" />
+                <span>Lecture Recordings (3)</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setModalVideoTab('references');
+                  setActiveModalVideoIndex(0);
+                }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  modalVideoTab === 'references'
+                    ? 'bg-[#5B3DF5] text-white shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Reference Videos & Blueprints (3)</span>
+              </button>
+            </div>
+
+            {/* Video List based on Active Tab */}
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+              {modalVideoTab === 'recordings' ? (
+                [
+                  {
+                    id: 'r1',
+                    title: 'Session 01: Architecture Fundamentals & Threat Modeling',
+                    duration: '52:18',
+                    date: 'Recorded Nov 10, 2026',
+                    tag: 'Cohort Live',
+                  },
+                  {
+                    id: 'r2',
+                    title: 'Session 02: Real-time Incident Detection & Telemetry Ingestion',
+                    duration: '48:45',
+                    date: 'Recorded Nov 12, 2026',
+                    tag: 'Hands-on Lab',
+                  },
+                  {
+                    id: 'r3',
+                    title: 'Session 03: Automated Remediation & Production Post-Mortems',
+                    duration: '56:10',
+                    date: 'Recorded Nov 14, 2026',
+                    tag: 'Case Study',
+                  },
+                ].map((item, idx) => (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setActiveModalVideoIndex(idx);
+                      setModalIsPlaying(true);
+                      toast.success(`Playing recording: ${item.title}`);
+                    }}
+                    className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
+                      activeModalVideoIndex === idx
+                        ? 'border-[#5B3DF5] bg-purple-50/70 dark:bg-purple-950/30'
+                        : 'border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-900/60 text-[#5B3DF5] flex items-center justify-center font-bold text-xs">
+                        {idx + 1}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                          {item.title}
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          {item.date} · {item.tag}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-mono font-medium text-slate-600 dark:text-slate-300">
+                        {item.duration}
+                      </span>
+                      <Play className="w-3.5 h-3.5 text-[#5B3DF5] fill-current" />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                [
+                  {
+                    id: 'f1',
+                    title: 'Reference Video: AWS Well-Architected Security Pillar Deep Dive',
+                    duration: '22:40',
+                    tag: 'Blueprint',
+                  },
+                  {
+                    id: 'f2',
+                    title: 'Reference Video: Hands-on Packet Capture & Wireshark Threat Analysis',
+                    duration: '31:15',
+                    tag: 'Lab Walkthrough',
+                  },
+                  {
+                    id: 'f3',
+                    title: 'Reference Video: Production Terraform Blueprints for Zero Trust Access',
+                    duration: '18:50',
+                    tag: 'Code Review',
+                  },
+                ].map((item, idx) => (
+                  <div
+                    key={item.id}
+                    onClick={() => {
+                      setActiveModalVideoIndex(idx);
+                      setModalIsPlaying(true);
+                      toast.success(`Playing reference: ${item.title}`);
+                    }}
+                    className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
+                      activeModalVideoIndex === idx
+                        ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/30'
+                        : 'border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center font-bold text-xs">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                          {item.title}
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                          Supplementary Reference · {item.tag}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-mono font-medium text-slate-600 dark:text-slate-300">
+                        {item.duration}
+                      </span>
+                      <Play className="w-3.5 h-3.5 text-emerald-600 fill-current" />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal Action Buttons */}
+            <div className="pt-2 flex justify-between items-center border-t border-slate-100 dark:border-slate-800">
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                All videos include synchronized timestamps & transcripts
+              </span>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setActiveLessonCourse(null);
+                    setModalIsPlaying(false);
+                  }}
+                >
+                  Close
+                </Button>
+                <Link to={`/courses/${activeLessonCourse.id}`}>
+                  <Button variant="primary" size="sm" className="bg-[#5B3DF5] hover:bg-[#4E31DD]">
+                    Open Full Syllabus
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Course Registration Confirmation Modal for Students */}
+      {registeringCourse && (
+        <Modal
+          isOpen={!!registeringCourse}
+          onClose={() => setRegisteringCourse(null)}
+          title="Confirm Course Registration"
+          description="Register for full access to live cohort sessions, video archives, and certifications"
+          maxWidth="md"
+        >
+          <div className="space-y-4 py-2">
+            {/* Course Summary Card */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 space-y-3">
+              <div className="flex items-center gap-3">
+                <img
+                  src={registeringCourse.thumbnail}
+                  alt={registeringCourse.title}
+                  className="w-14 h-14 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700 flex-shrink-0"
+                />
+                <div>
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Badge variant="emerald" size="sm">
+                      {registeringCourse.category}
+                    </Badge>
+                    <Badge variant="slate" size="sm">
+                      {registeringCourse.level}
+                    </Badge>
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                    {registeringCourse.title}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Instructor: {registeringCourse.instructorName}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/80 dark:border-slate-700 text-center text-xs">
+                <div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">Duration</p>
+                  <p className="font-bold text-slate-800 dark:text-slate-200">
+                    {registeringCourse.duration}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">Total Lessons</p>
+                  <p className="font-bold text-slate-800 dark:text-slate-200">
+                    {registeringCourse.totalLessons} lessons
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400">Tuition</p>
+                  <p className="font-bold text-emerald-600 dark:text-emerald-400">
+                    {registeringCourse.price === 0 ? 'Free' : `$${registeringCourse.price}`}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Student Details Pre-filled */}
+            <div className="p-3.5 rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-100 dark:border-purple-900/50 space-y-1.5">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#5B3DF5] dark:text-purple-300">
+                Student Enrollment Details
+              </span>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-600 dark:text-slate-400">Student Name:</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">
+                  {user?.name || 'Maheswari'}
+                </span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-600 dark:text-slate-400">Student Email:</span>
+                <span className="font-bold text-slate-900 dark:text-slate-100">
+                  {user?.email || 'student@edusphere.com'}
+                </span>
+              </div>
+            </div>
+
+            {/* Included Features */}
+            <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+              <p className="font-semibold text-slate-800 dark:text-slate-200">
+                What you get upon registration:
+              </p>
+              <div className="flex items-center gap-2 text-[11px]">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                <span>Unlimited streaming access to all cohort lecture recordings & replay archives</span>
+              </div>
+              <div className="flex items-center gap-2 text-[11px]">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                <span>Supplementary reference videos, Terraform blueprints & architecture walk-throughs</span>
+              </div>
+              <div className="flex items-center gap-2 text-[11px]">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                <span>Direct AI fellow tutoring & interview prep with Cyber Cat</span>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="pt-2 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setRegisteringCourse(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => handleConfirmRegister(registeringCourse)}
+                className="bg-[#5B3DF5] hover:bg-[#4E31DD] text-white"
+              >
+                Confirm & Enroll Now
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 };
