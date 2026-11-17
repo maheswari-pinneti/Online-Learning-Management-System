@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -21,18 +21,7 @@ import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
 import { Modal } from '@/components/common/Modal';
 import { CourseDetailsSkeleton } from '@/components/feedback/SkeletonLoader';
-
-interface VideoItem {
-  id: string;
-  title: string;
-  type: 'recording' | 'reference';
-  duration: string;
-  date?: string;
-  views?: string;
-  description: string;
-  thumbnail: string;
-  chapters?: { time: string; label: string }[];
-}
+import { getCourseVideoLibrary, CourseVideo } from '@/utils/videoHelpers';
 
 export const CourseDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -64,94 +53,15 @@ export const CourseDetails: React.FC = () => {
   }, [isTestEnv]);
 
   // Generate tailored recordings & reference videos based on course
-  const courseRecordings: VideoItem[] = course
-    ? [
-        {
-          id: 'rec-1',
-          title: `${course.title.split(',')[0]} — Session 1: Orientation & Architecture Setup`,
-          type: 'recording',
-          duration: '48:15',
-          date: 'Recorded Nov 10, 2026',
-          views: '1,420 views',
-          thumbnail: course.thumbnail,
-          description: 'Comprehensive breakdown of foundational principles, tools installation, and live architectural setup.',
-          chapters: [
-            { time: '00:00', label: 'Orientation & Syllabus Roadmap' },
-            { time: '12:30', label: 'Development Environment & Dependencies' },
-            { time: '28:10', label: 'Architecture Breakdown & Live Demo' },
-            { time: '41:00', label: 'Student Q&A & Key Takeaways' },
-          ],
-        },
-        {
-          id: 'rec-2',
-          title: `${course.title.split(',')[0]} — Session 2: Hands-on Lab & Implementation Deep-Dive`,
-          type: 'recording',
-          duration: '54:30',
-          date: 'Recorded Nov 12, 2026',
-          views: '1,180 views',
-          thumbnail: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop&q=80',
-          description: 'Step-by-step implementation walkthrough solving core engineering milestones and demonstrating edge-case testing.',
-          chapters: [
-            { time: '00:00', label: 'Recap & Objectives' },
-            { time: '14:20', label: 'Step 1: Implementation Lab' },
-            { time: '35:45', label: 'Step 2: Error Handling & Edge Cases' },
-            { time: '48:10', label: 'Verification & Homework Checklist' },
-          ],
-        },
-        {
-          id: 'rec-3',
-          title: `${course.title.split(',')[0]} — Session 3: Live Incident Triage & Faculty Office Hours`,
-          type: 'recording',
-          duration: '41:10',
-          date: 'Recorded Nov 14, 2026',
-          views: '985 views',
-          thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=600&auto=format&fit=crop&q=80',
-          description: 'Interactive review session addressing student questions, code optimization patterns, and performance benchmarks.',
-          chapters: [
-            { time: '00:00', label: 'Open AMA & Cohort Questions' },
-            { time: '18:30', label: 'Debugging Common Pitfalls' },
-            { time: '32:00', label: 'Interview Preparation Tips' },
-          ],
-        },
-      ]
-    : [];
+  const videoLib = useMemo(
+    () => (course ? getCourseVideoLibrary(course) : { recordings: [], references: [], allVideos: [] }),
+    [course]
+  );
+  const courseRecordings = videoLib.recordings;
+  const courseReferences = videoLib.references;
 
-  const courseReferences: VideoItem[] = course
-    ? [
-        {
-          id: 'ref-1',
-          title: `Fast-Track Reference: 15-Minute Architecture Blueprint & Cheat Sheet`,
-          type: 'reference',
-          duration: '15:20',
-          date: 'Reference Video',
-          views: '3,210 views',
-          thumbnail: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=600&auto=format&fit=crop&q=80',
-          description: 'High-yield reference walkthrough highlighting syntax rules, critical API design patterns, and deployment best practices.',
-        },
-        {
-          id: 'ref-2',
-          title: `Industry Reference: Production Deployment & Zero-Trust Mitigation`,
-          type: 'reference',
-          duration: '28:45',
-          date: 'Reference Case Study',
-          views: '2,640 views',
-          thumbnail: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&auto=format&fit=crop&q=80',
-          description: 'Deep-dive reference recording exploring how modern enterprises safeguard workloads against real-world incidents.',
-        },
-        {
-          id: 'ref-3',
-          title: `Supplementary Walkthrough: Performance Benchmarks & Code Tuning`,
-          type: 'reference',
-          duration: '22:15',
-          date: 'Lab Walkthrough',
-          views: '1,890 views',
-          thumbnail: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=600&auto=format&fit=crop&q=80',
-          description: 'Supplementary demonstration showing profiling techniques, runtime diagnostics, and optimization metrics.',
-        },
-      ]
-    : [];
-
-  const [selectedVideo, setSelectedVideo] = useState<VideoItem>(courseRecordings[0] || courseReferences[0]);
+  const [selectedVideo, setSelectedVideo] = useState<CourseVideo | null>(null);
+  const activeVideo = selectedVideo || courseRecordings[0] || courseReferences[0];
 
   if (isSkeletonLoading) {
     return <CourseDetailsSkeleton />;
@@ -318,8 +228,8 @@ export const CourseDetails: React.FC = () => {
             {/* VIDEO PLAYER SCREEN */}
             <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-slate-950 flex flex-col justify-between p-4 shadow-lg group">
               <img
-                src={selectedVideo.thumbnail}
-                alt={selectedVideo.title}
+                src={activeVideo?.thumbnail || course.thumbnail}
+                alt={activeVideo?.title || course.title}
                 className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:scale-102 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-black/40" />
@@ -328,10 +238,10 @@ export const CourseDetails: React.FC = () => {
               <div className="relative z-10 flex items-center justify-between text-white text-xs">
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded bg-emerald-500/90 font-bold text-[10px] uppercase tracking-wider">
-                    {selectedVideo.type === 'recording' ? 'Lecture Recording' : 'Reference Video'}
+                    {activeVideo?.type === 'recording' ? 'Lecture Recording' : 'Reference Video'}
                   </span>
                   <span className="text-[11px] text-slate-200 hidden sm:inline">
-                    {selectedVideo.date}
+                    {activeVideo?.date}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -358,7 +268,7 @@ export const CourseDetails: React.FC = () => {
                 <button
                   onClick={() => {
                     setIsPlaying(!isPlaying);
-                    toast.success(isPlaying ? 'Video paused' : `Streaming: ${selectedVideo.title}`);
+                    toast.success(isPlaying ? 'Video paused' : `Streaming: ${activeVideo?.title}`);
                   }}
                   className="w-16 h-16 rounded-full bg-white text-slate-950 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-2xl hover:bg-[#5B3DF5] hover:text-white"
                 >
@@ -369,7 +279,7 @@ export const CourseDetails: React.FC = () => {
                   )}
                 </button>
                 <p className="text-white text-xs font-semibold mt-3 text-center px-4 drop-shadow-md line-clamp-1">
-                  {selectedVideo.title}
+                  {activeVideo?.title}
                 </p>
               </div>
 
@@ -393,7 +303,7 @@ export const CourseDetails: React.FC = () => {
                 <div className="flex items-center justify-between text-xs text-slate-200">
                   <div className="flex items-center gap-2">
                     <span className="font-mono text-[11px]">
-                      {Math.floor((videoProgress / 100) * 48)}:15 / {selectedVideo.duration}
+                      {Math.floor((videoProgress / 100) * 48)}:15 / {activeVideo?.duration || '48:00'}
                     </span>
                     <button
                       onClick={() => toast.info('Volume toggled')}
@@ -423,7 +333,7 @@ export const CourseDetails: React.FC = () => {
                   Archived Cohort Video Lectures
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {courseRecordings.map((rec) => (
+                  {courseRecordings.map((rec: CourseVideo) => (
                     <div
                       key={rec.id}
                       onClick={() => {
@@ -432,7 +342,7 @@ export const CourseDetails: React.FC = () => {
                         toast.success(`Loaded video: ${rec.title}`);
                       }}
                       className={`p-3 rounded-2xl border transition-all cursor-pointer flex gap-3 ${
-                        selectedVideo.id === rec.id
+                        activeVideo?.id === rec.id
                           ? 'bg-purple-50/80 dark:bg-purple-950/30 border-[#5B3DF5] shadow-xs'
                           : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 hover:border-purple-300'
                       }`}
@@ -467,7 +377,7 @@ export const CourseDetails: React.FC = () => {
                   Supplementary Reference Recordings & Demos
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {courseReferences.map((ref) => (
+                  {courseReferences.map((ref: CourseVideo) => (
                     <div
                       key={ref.id}
                       onClick={() => {
@@ -476,7 +386,7 @@ export const CourseDetails: React.FC = () => {
                         toast.success(`Loaded reference video: ${ref.title}`);
                       }}
                       className={`p-3 rounded-2xl border transition-all cursor-pointer flex gap-3 ${
-                        selectedVideo.id === ref.id
+                        activeVideo?.id === ref.id
                           ? 'bg-purple-50/80 dark:bg-purple-950/30 border-[#5B3DF5] shadow-xs'
                           : 'bg-slate-50 dark:bg-slate-800/40 border-slate-200/60 dark:border-slate-800 hover:border-purple-300'
                       }`}

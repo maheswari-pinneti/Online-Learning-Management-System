@@ -147,13 +147,13 @@ export const INITIAL_INSTRUCTORS: Instructor[] = [
 export const INITIAL_STUDENTS: Student[] = [
   {
     id: 'stud-1',
-    fullName: 'Sophia Patel',
+    fullName: 'Maheswari',
     email: 'student@edusphere.com',
-    mobileNumber: '+1 555-019-2834',
-    address: '742 Evergreen Terrace, Springfield, OR',
-    qualification: 'Bachelor of Science in Computer Science',
-    enrollmentDate: '2026-01-15T09:00:00.000Z',
-    avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    mobileNumber: '+91 97000-88219',
+    address: 'Cyber Defense Lab, Silicon Valley, CA',
+    qualification: 'CyberGenius - Inside the Breach',
+    enrollmentDate: '2026-01-10T08:00:00.000Z',
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     status: 'Active',
   },
   {
@@ -203,6 +203,32 @@ export const INITIAL_STUDENTS: Student[] = [
 ];
 
 export const INITIAL_COURSES: Course[] = [
+  {
+    id: 'course-cyber-1',
+    title: 'CyberGenius - Inside the Breach: Enterprise & Cloud Defense',
+    description: 'Master offensive attack vector dissection, live cloud intrusion forensics, AWS IAM privilege escalation mitigations, and defensive zero-trust architecture. Certified by CyberGenius Labs.',
+    thumbnail: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80',
+    instructorId: 'inst-4',
+    instructorName: "David O'Connor",
+    category: 'Cybersecurity',
+    duration: '10 Weeks',
+    durationHours: 40,
+    level: 'Intermediate',
+    price: 165,
+    rating: 4.95,
+    ratingCount: 540,
+    totalLessons: 6,
+    createdAt: '2026-01-10T00:00:00.000Z',
+    updatedAt: '2026-02-15T00:00:00.000Z',
+    lessons: [
+      { id: 'les-cy-1', title: 'Inside the Breach: Threat Vectors & Reconnaissance', durationMinutes: 45, order: 1, content: 'Attack surface mapping, OSINT reconnaissance, and perimeter discovery.', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
+      { id: 'les-cy-2', title: "Inside the Breach: They're in the Cloud (AWS IAM Triage)", durationMinutes: 50, order: 2, content: 'Investigating compromised instance metadata and lateral privilege escalation.', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
+      { id: 'les-cy-3', title: 'Packet Capture, Memory Analysis & Forensic Carving', durationMinutes: 55, order: 3, content: 'Wireshark deep-packet inspection, memory dump extraction, and C2 tracking.', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
+      { id: 'les-cy-4', title: 'Exploiting & Patching Cloud-Native Workloads', durationMinutes: 60, order: 4, content: 'Container breakout mitigation, Kubernetes API protection, and IAM hardening.', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
+      { id: 'les-cy-5', title: 'Zero-Trust Architecture & Micro-Segmentation', durationMinutes: 50, order: 5, content: 'Mutual TLS, least privilege service-to-service trust boundaries, and policy engines.', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
+      { id: 'les-cy-6', title: 'Automated Threat Hunting & Incident Post-Mortems', durationMinutes: 65, order: 6, content: 'Constructing automated remediation lambdas and enterprise post-incident reporting.', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
+    ],
+  },
   {
     id: 'course-react-1',
     title: 'Learn React From Scratch, Build Stunning UIs With Ease, And Create Real-World Projects.',
@@ -464,7 +490,7 @@ export const INITIAL_COURSES: Course[] = [
     thumbnail: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=600&auto=format&fit=crop&q=80',
     instructorId: 'inst-4',
     instructorName: 'David O\'Connor',
-    category: 'Security',
+    category: 'Cybersecurity',
     duration: '10 Weeks',
     durationHours: 40,
     level: 'Intermediate',
@@ -485,6 +511,16 @@ export const INITIAL_COURSES: Course[] = [
 ];
 
 export const INITIAL_ENROLLMENTS: Enrollment[] = [
+  {
+    id: 'enr-cyber',
+    studentId: 'stud-1',
+    courseId: 'course-cyber-1',
+    enrollmentDate: '2026-01-10T09:00:00.000Z',
+    status: 'Enrolled',
+    completedLessons: ['les-cy-1', 'les-cy-2'],
+    progressPercentage: 33.3,
+    lastAccessedAt: '2026-03-30T10:00:00.000Z',
+  },
   {
     id: 'enr-1',
     studentId: 'stud-1',
@@ -569,6 +605,16 @@ export const INITIAL_ENROLLMENTS: Enrollment[] = [
 
 export const INITIAL_ASSIGNMENTS: Assignment[] = [
   {
+    id: 'asg-cyber-1',
+    courseId: 'course-cyber-1',
+    courseName: 'CyberGenius - Inside the Breach: Enterprise & Cloud Defense',
+    title: 'Inside the Breach: Cloud Perimeter Intrusion Defense Lab',
+    description: 'Investigate the simulated compromised AWS environment, extract attacker lateral movement timelines, and patch exposed IAM roles using automated Lambda triggers.',
+    dueDate: '2026-11-28T23:59:59.000Z',
+    totalMarks: 100,
+    passingMarks: 70,
+  },
+  {
     id: 'asg-1',
     courseId: 'course-1',
     courseName: 'Advanced Full Stack Web Architecture with React & Node',
@@ -621,6 +667,54 @@ export const INITIAL_ASSIGNMENTS: Assignment[] = [
 ];
 
 export const INITIAL_QUIZZES: Quiz[] = [
+  {
+    id: 'quiz-cyber-1',
+    courseId: 'course-cyber-1',
+    courseName: 'CyberGenius - Inside the Breach: Enterprise & Cloud Defense',
+    title: 'Inside the Breach: Cloud Defense & Incident Response Quiz',
+    instructions: 'Comprehensive assessment on cloud threat modeling, AWS IMDSv2 protection, and Wireshark forensics. Passing grade: 75%.',
+    timeLimitMinutes: 15,
+    totalQuestions: 3,
+    passingScorePercentage: 75,
+    questions: [
+      {
+        id: 'q-cy-1',
+        question: 'When an attacker compromises an EC2 instance metadata service (IMDSv1), which mechanism best mitigates token exfiltration?',
+        options: [
+          'Enforce IMDSv2 requiring session-oriented PUT requests with hop limits',
+          'Disable IAM roles on EC2 entirely',
+          'Increase security group ingress ports to allow wider scanning',
+          'Allow public access to S3 buckets',
+        ],
+        correctOptionIndex: 0,
+        explanation: 'IMDSv2 enforces session-oriented tokens acquired via PUT requests, preventing SSRF attacks from stealing instance credentials.',
+      },
+      {
+        id: 'q-cy-2',
+        question: 'In network traffic forensics, what is the clearest indicator of DNS tunneling for command & control (C2)?',
+        options: [
+          'Occasional standard A record lookups for popular search engines',
+          'High frequency of abnormally long TXT or base64-encoded subdomains queried to an authoritative nameserver',
+          'ICMP echo requests with zero payload',
+          'HTTP GET requests returning 404 status codes',
+        ],
+        correctOptionIndex: 1,
+        explanation: 'Attackers tunnel data over DNS by querying long encoded subdomains (e.g. base64 payloads) to an attacker-controlled authoritative nameserver.',
+      },
+      {
+        id: 'q-cy-3',
+        question: 'Which zero-trust security principle guarantees that access is validated on every single transaction regardless of network location?',
+        options: [
+          'Perimeter firewall defense only',
+          'Never Trust, Always Verify with continuous authentication and least privilege authorization',
+          'Granting domain admin privileges to all internal microservices',
+          'Using shared passwords across engineering teams',
+        ],
+        correctOptionIndex: 1,
+        explanation: 'Zero Trust assumes breach and mandates that all access requests are verified, authenticated, and authorized based on all available data points.',
+      },
+    ],
+  },
   {
     id: 'quiz-1',
     courseId: 'course-1',

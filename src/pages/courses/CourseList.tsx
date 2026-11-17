@@ -33,6 +33,7 @@ import { CourseCardSkeleton } from '@/components/feedback/SkeletonLoader';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { CourseModal } from './CourseModal';
 import { Modal } from '@/components/common/Modal';
+import { getCourseVideoLibrary } from '@/utils/videoHelpers';
 
 export const CourseList: React.FC = () => {
   const { courses, isLoading, error, addCourse, updateCourse, deleteCourse, refreshCourses } =
@@ -61,6 +62,20 @@ export const CourseList: React.FC = () => {
   const [modalIsPlaying, setModalIsPlaying] = useState(false);
   const [modalPlaybackSpeed, setModalPlaybackSpeed] = useState<'1x' | '1.25x' | '1.5x' | '2x'>('1x');
   const [modalProgress, setModalProgress] = useState(28);
+
+  // Dynamic video library derived for the currently active course
+  const activeVideoLibrary = useMemo(() => {
+    return activeLessonCourse ? getCourseVideoLibrary(activeLessonCourse) : null;
+  }, [activeLessonCourse]);
+
+  const currentVideoList = useMemo(() => {
+    if (!activeVideoLibrary) return [];
+    return modalVideoTab === 'recordings'
+      ? activeVideoLibrary.recordings
+      : activeVideoLibrary.references;
+  }, [activeVideoLibrary, modalVideoTab]);
+
+  const activeVideoItem = currentVideoList[activeModalVideoIndex] || currentVideoList[0];
 
   // 3-second human-friendly skeleton loader
   const isTestEnv = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
@@ -416,27 +431,27 @@ export const CourseList: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    {isStudent && user && (
-                      isStudentEnrolled(user.id, course.id) ? (
-                        <button
-                          onClick={() => {
-                            setActiveLessonCourse(course);
-                            setActiveModalVideoIndex(0);
-                          }}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 text-[#5B3DF5] dark:text-purple-300 font-bold text-xs transition-colors"
-                        >
-                          <Play className="w-3 h-3 fill-current" />
-                          <span>Watch Videos</span>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setRegisteringCourse(course)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-950 font-bold text-xs transition-all shadow-xs active:scale-95"
-                        >
-                          <UserPlus className="w-3 h-3" />
-                          <span>Register</span>
-                        </button>
-                      )
+                    <button
+                      onClick={() => {
+                        setActiveLessonCourse(course);
+                        setActiveModalVideoIndex(0);
+                        setModalVideoTab('recordings');
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 text-[#5B3DF5] dark:text-purple-300 font-bold text-xs transition-colors"
+                      title="Watch course lecture recordings & videos"
+                    >
+                      <Play className="w-3 h-3 fill-current" />
+                      <span>Watch Videos</span>
+                    </button>
+
+                    {isStudent && user && !isStudentEnrolled(user.id, course.id) && (
+                      <button
+                        onClick={() => setRegisteringCourse(course)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-950 font-bold text-xs transition-all shadow-xs active:scale-95"
+                      >
+                        <UserPlus className="w-3 h-3" />
+                        <span>Register</span>
+                      </button>
                     )}
 
                     <Link to={`/courses/${course.id}`}>
@@ -528,28 +543,27 @@ export const CourseList: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        {isStudent && user && (
-                          isStudentEnrolled(user.id, c.id) ? (
-                            <button
-                              onClick={() => {
-                                setActiveLessonCourse(c);
-                                setActiveModalVideoIndex(0);
-                                setModalVideoTab('recordings');
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 text-[#5B3DF5] dark:text-purple-300 font-bold text-[11px] transition-colors"
-                            >
-                              <Play className="w-3 h-3 fill-current" />
-                              <span>Videos</span>
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => setRegisteringCourse(c)}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-950 font-bold text-[11px] transition-all shadow-xs"
-                            >
-                              <UserPlus className="w-3 h-3" />
-                              <span>Register</span>
-                            </button>
-                          )
+                        <button
+                          onClick={() => {
+                            setActiveLessonCourse(c);
+                            setActiveModalVideoIndex(0);
+                            setModalVideoTab('recordings');
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/60 text-[#5B3DF5] dark:text-purple-300 font-bold text-[11px] transition-colors"
+                          title="Watch Videos & Recordings"
+                        >
+                          <Play className="w-3 h-3 fill-current" />
+                          <span>Videos</span>
+                        </button>
+
+                        {isStudent && user && !isStudentEnrolled(user.id, c.id) && (
+                          <button
+                            onClick={() => setRegisteringCourse(c)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-900 hover:bg-black dark:bg-white dark:hover:bg-slate-200 text-white dark:text-slate-950 font-bold text-[11px] transition-all shadow-xs"
+                          >
+                            <UserPlus className="w-3 h-3" />
+                            <span>Register</span>
+                          </button>
                         )}
 
                         <Link to={`/courses/${c.id}`}>
@@ -658,7 +672,9 @@ export const CourseList: React.FC = () => {
                     {modalVideoTab === 'recordings' ? 'Lecture Recording' : 'Reference Video'}
                   </span>
                   <span className="text-xs font-semibold text-slate-200 truncate max-w-xs">
-                    {modalVideoTab === 'recordings'
+                    {activeVideoItem
+                      ? activeVideoItem.title
+                      : modalVideoTab === 'recordings'
                       ? `Session ${activeModalVideoIndex + 1}: Live Cohort Masterclass`
                       : `Reference Guide #${activeModalVideoIndex + 1}: Architecture & Deep Dive`}
                   </span>
@@ -678,7 +694,7 @@ export const CourseList: React.FC = () => {
                     toast.info(
                       modalIsPlaying
                         ? 'Video stream paused'
-                        : 'Streaming lecture with live interactive checkpoints...'
+                        : `Streaming: ${activeVideoItem?.title || activeLessonCourse.title}`
                     );
                   }}
                   className="w-16 h-16 rounded-full bg-white/95 text-slate-950 flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow-2xl hover:bg-[#5B3DF5] hover:text-white"
@@ -707,9 +723,9 @@ export const CourseList: React.FC = () => {
 
                 <div className="flex items-center justify-between text-white text-xs">
                   <div className="flex items-center gap-2 font-mono text-[11px] text-slate-300">
-                    <span>{Math.floor((modalProgress * 48) / 100)}:15</span>
+                    <span>{Math.floor((modalProgress * (activeVideoItem?.durationMinutes || 48)) / 100)}:15</span>
                     <span>/</span>
-                    <span>48:00</span>
+                    <span>{activeVideoItem?.duration || '48:00'}</span>
                   </div>
 
                   {/* Playback speed selector */}
@@ -750,7 +766,7 @@ export const CourseList: React.FC = () => {
                 }`}
               >
                 <Video className="w-3.5 h-3.5" />
-                <span>Lecture Recordings (3)</span>
+                <span>Lecture Recordings ({activeVideoLibrary?.recordings.length || 0})</span>
               </button>
 
               <button
@@ -765,126 +781,59 @@ export const CourseList: React.FC = () => {
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
-                <span>Reference Videos & Blueprints (3)</span>
+                <span>Reference Videos & Blueprints ({activeVideoLibrary?.references.length || 0})</span>
               </button>
             </div>
 
             {/* Video List based on Active Tab */}
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-              {modalVideoTab === 'recordings' ? (
-                [
-                  {
-                    id: 'r1',
-                    title: 'Session 01: Architecture Fundamentals & Threat Modeling',
-                    duration: '52:18',
-                    date: 'Recorded Nov 10, 2026',
-                    tag: 'Cohort Live',
-                  },
-                  {
-                    id: 'r2',
-                    title: 'Session 02: Real-time Incident Detection & Telemetry Ingestion',
-                    duration: '48:45',
-                    date: 'Recorded Nov 12, 2026',
-                    tag: 'Hands-on Lab',
-                  },
-                  {
-                    id: 'r3',
-                    title: 'Session 03: Automated Remediation & Production Post-Mortems',
-                    duration: '56:10',
-                    date: 'Recorded Nov 14, 2026',
-                    tag: 'Case Study',
-                  },
-                ].map((item, idx) => (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      setActiveModalVideoIndex(idx);
-                      setModalIsPlaying(true);
-                      toast.success(`Playing recording: ${item.title}`);
-                    }}
-                    className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
-                      activeModalVideoIndex === idx
+              {currentVideoList.map((item, idx) => (
+                <div
+                  key={item.id}
+                  onClick={() => {
+                    setActiveModalVideoIndex(idx);
+                    setModalIsPlaying(true);
+                    toast.success(`Playing: ${item.title}`);
+                  }}
+                  className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
+                    activeModalVideoIndex === idx
+                      ? modalVideoTab === 'recordings'
                         ? 'border-[#5B3DF5] bg-purple-50/70 dark:bg-purple-950/30'
-                        : 'border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-900/60 text-[#5B3DF5] flex items-center justify-center font-bold text-xs">
-                        {idx + 1}
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
-                          {item.title}
-                        </p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          {item.date} · {item.tag}
-                        </p>
-                      </div>
+                        : 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/30'
+                      : 'border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs ${
+                        modalVideoTab === 'recordings'
+                          ? 'bg-purple-100 dark:bg-purple-900/60 text-[#5B3DF5]'
+                          : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300'
+                      }`}
+                    >
+                      {modalVideoTab === 'recordings' ? idx + 1 : <FileText className="w-4 h-4" />}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-mono font-medium text-slate-600 dark:text-slate-300">
-                        {item.duration}
-                      </span>
-                      <Play className="w-3.5 h-3.5 text-[#5B3DF5] fill-current" />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                [
-                  {
-                    id: 'f1',
-                    title: 'Reference Video: AWS Well-Architected Security Pillar Deep Dive',
-                    duration: '22:40',
-                    tag: 'Blueprint',
-                  },
-                  {
-                    id: 'f2',
-                    title: 'Reference Video: Hands-on Packet Capture & Wireshark Threat Analysis',
-                    duration: '31:15',
-                    tag: 'Lab Walkthrough',
-                  },
-                  {
-                    id: 'f3',
-                    title: 'Reference Video: Production Terraform Blueprints for Zero Trust Access',
-                    duration: '18:50',
-                    tag: 'Code Review',
-                  },
-                ].map((item, idx) => (
-                  <div
-                    key={item.id}
-                    onClick={() => {
-                      setActiveModalVideoIndex(idx);
-                      setModalIsPlaying(true);
-                      toast.success(`Playing reference: ${item.title}`);
-                    }}
-                    className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition-all ${
-                      activeModalVideoIndex === idx
-                        ? 'border-emerald-500 bg-emerald-50/70 dark:bg-emerald-950/30'
-                        : 'border-slate-200 dark:border-slate-800/80 hover:bg-slate-50 dark:hover:bg-slate-800/50'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-300 flex items-center justify-center font-bold text-xs">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
-                          {item.title}
-                        </p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          Supplementary Reference · {item.tag}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-mono font-medium text-slate-600 dark:text-slate-300">
-                        {item.duration}
-                      </span>
-                      <Play className="w-3.5 h-3.5 text-emerald-600 fill-current" />
+                    <div>
+                      <p className="text-xs font-bold text-slate-900 dark:text-white line-clamp-1">
+                        {item.title}
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {item.date} · {item.tag}
+                      </p>
                     </div>
                   </div>
-                ))
-              )}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-mono font-medium text-slate-600 dark:text-slate-300">
+                      {item.duration}
+                    </span>
+                    <Play
+                      className={`w-3.5 h-3.5 fill-current ${
+                        modalVideoTab === 'recordings' ? 'text-[#5B3DF5]' : 'text-emerald-600'
+                      }`}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Modal Action Buttons */}

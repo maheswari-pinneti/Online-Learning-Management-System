@@ -50,7 +50,7 @@ import { CourseModal } from '@/pages/courses/CourseModal';
 import { StudentModal } from '@/pages/students/StudentModal';
 import { InstructorModal } from '@/pages/instructors/InstructorModal';
 import { AssignCourseModal } from '@/pages/instructors/AssignCourseModal';
-import { INITIAL_UPCOMING_CLASSES } from '@/utils/mockData';
+import { INITIAL_UPCOMING_CLASSES, INITIAL_STUDENTS, INITIAL_COURSES } from '@/utils/mockData';
 import { UpcomingClass, Course, Student, Instructor } from '@/types';
 import { CourseFormData, StudentFormData, InstructorFormData } from '@/utils/validators';
 
@@ -965,24 +965,24 @@ export const AdminDashboard: React.FC = () => {
                   </tr>
                 ) : (
                   filteredCrudEnrollments.slice(0, 6).map((enr) => {
-                    const st = students.find((s) => s.id === enr.studentId);
-                    const cr = courses.find((c) => c.id === enr.courseId);
+                    const st = students.find((s) => s.id === enr.studentId) || INITIAL_STUDENTS.find((s) => s.id === enr.studentId);
+                    const cr = courses.find((c) => c.id === enr.courseId) || INITIAL_COURSES.find((c) => c.id === enr.courseId);
                     return (
                       <tr key={enr.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                         <td className="py-3 px-4">
                           <p className="font-bold text-slate-900 dark:text-white">
-                            {st?.fullName || 'Student'}
+                            {st?.fullName || 'Maheswari'}
                           </p>
                           <p className="text-[11px] text-slate-400">
-                            {st?.email || enr.studentId}
+                            {st?.email || 'student@edusphere.com'}
                           </p>
                         </td>
                         <td className="py-3 px-4">
                           <p className="font-semibold text-slate-800 dark:text-slate-200">
-                            {cr?.title || 'Course'}
+                            {cr?.title || 'CyberGenius - Inside the Breach'}
                           </p>
                           <p className="text-[11px] text-slate-400">
-                            {cr?.category || 'General'}
+                            {cr?.category || 'Cybersecurity'}
                           </p>
                         </td>
                         <td className="py-3 px-4 text-slate-500 dark:text-slate-400">

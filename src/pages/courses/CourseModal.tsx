@@ -117,11 +117,13 @@ export const CourseModal: React.FC<CourseModalProps> = ({
           <Select
             label="Category"
             options={[
+              { value: 'Cybersecurity', label: 'Cybersecurity' },
               { value: 'Development', label: 'Development' },
               { value: 'Data Science', label: 'Data Science & AI' },
               { value: 'Design', label: 'Design & UI/UX' },
               { value: 'DevOps', label: 'DevOps & Cloud' },
-              { value: 'Security', label: 'Cybersecurity' },
+              { value: 'Frontend', label: 'Frontend' },
+              { value: 'Backend', label: 'Backend' },
               { value: 'Business', label: 'Product & Business' },
             ]}
             error={errors.category?.message}

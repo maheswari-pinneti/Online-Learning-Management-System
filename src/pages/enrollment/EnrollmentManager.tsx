@@ -18,6 +18,7 @@ import { Badge } from '@/components/common/Badge';
 import { Modal } from '@/components/common/Modal';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { formatDate } from '@/utils/formatters';
+import { INITIAL_STUDENTS, INITIAL_COURSES } from '@/utils/mockData';
 
 export const EnrollmentManager: React.FC = () => {
   const { enrollments, enrollStudent, unenrollStudent, isStudentEnrolled } = useEnrollment();
@@ -73,15 +74,15 @@ export const EnrollmentManager: React.FC = () => {
   const enrichedEnrollments = useMemo(() => {
     return enrollments
       .map((enr) => {
-        const student = students.find((s) => s.id === enr.studentId);
-        const course = courses.find((c) => c.id === enr.courseId);
+        const student = students.find((s) => s.id === enr.studentId) || INITIAL_STUDENTS.find((s) => s.id === enr.studentId);
+        const course = courses.find((c) => c.id === enr.courseId) || INITIAL_COURSES.find((c) => c.id === enr.courseId);
         return {
           ...enr,
-          studentName: student?.fullName || 'Unknown Student',
-          studentEmail: student?.email || 'N/A',
-          courseTitle: course?.title || 'Unknown Course',
-          courseCategory: course?.category || 'General',
-          courseThumbnail: course?.thumbnail || '',
+          studentName: student?.fullName || 'Maheswari',
+          studentEmail: student?.email || 'student@edusphere.com',
+          courseTitle: course?.title || 'CyberGenius - Inside the Breach: Enterprise & Cloud Defense',
+          courseCategory: course?.category || 'Cybersecurity',
+          courseThumbnail: course?.thumbnail || 'https://images.unsplash.com/photo-1563986768609-322da13575f3?w=600',
         };
       })
       .filter((item) => {
