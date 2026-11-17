@@ -89,31 +89,31 @@ const studentNavItems: NavItem[] = [
   {
     name: 'Home',
     path: '/dashboard',
-    icon: <Home className="w-4 h-4 flex-shrink-0" />,
+    icon: <Home className="w-5 h-5 flex-shrink-0" />,
     roles: ['student'],
   },
   {
     name: 'Lessons',
     path: '/courses',
-    icon: <BookOpen className="w-4 h-4 flex-shrink-0" />,
+    icon: <BookOpen className="w-5 h-5 flex-shrink-0" />,
     roles: ['student'],
   },
   {
     name: 'Activities',
     path: '/assignments',
-    icon: <Network className="w-4 h-4 flex-shrink-0" />,
+    icon: <Network className="w-5 h-5 flex-shrink-0" />,
     roles: ['student'],
   },
   {
     name: 'Events',
     path: '/progress',
-    icon: <Calendar className="w-4 h-4 flex-shrink-0" />,
+    icon: <Calendar className="w-5 h-5 flex-shrink-0" />,
     roles: ['student'],
   },
   {
     name: 'Campus',
     path: '/instructors',
-    icon: <Compass className="w-4 h-4 flex-shrink-0" />,
+    icon: <Compass className="w-5 h-5 flex-shrink-0" />,
     roles: ['student'],
   },
 ];
@@ -158,7 +158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             : 'bg-white dark:bg-slate-900'
         } border-r border-slate-200/80 dark:border-slate-800 transition-all duration-300 ease-in-out lg:static ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        } ${isCollapsed ? 'w-20' : 'w-56'}`}
+        } ${isCollapsed ? 'w-20' : 'w-64'}`}
       >
         {/* Brand Header */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-slate-100/80 dark:border-slate-800">
@@ -180,7 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="font-extrabold text-base tracking-tight text-[#7047EB] dark:text-purple-400">
                   Schoooli
                 </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
+                <span className="text-xs uppercase font-bold tracking-wider text-slate-400">
                   EduSphere LMS
                 </span>
               </div>
@@ -197,20 +197,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
           {visibleItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
               onClick={() => setIsMobileOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-all group ${
+                `flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all group ${
                   isStudent
                     ? isActive
-                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-bold shadow-2xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                      ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
                     : isActive
-                    ? 'bg-[#7047EB] text-white shadow-sm shadow-[#7047EB]/25 font-bold'
+                    ? 'bg-[#7047EB] text-white shadow-sm shadow-[#7047EB]/25 font-semibold'
                     : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800/80 dark:hover:text-slate-200'
                 } ${isCollapsed ? 'justify-center px-2' : ''}`
               }
@@ -227,22 +227,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Admin/Instructor Pro Plan Upgrade Card */}
         {!isCollapsed && !isStudent && (
           <div className="mx-3 mb-3 rounded-2xl bg-gradient-to-br from-[#7047EB] via-[#5F35DB] to-[#4D24C7] text-white p-3.5 shadow-lg shadow-purple-500/20 relative overflow-hidden">
-            <div className="flex items-start gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                <Rocket className="w-4 h-4 text-amber-300" />
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                <Rocket className="w-5 h-5 text-amber-300" />
               </div>
               <div>
-                <p className="text-xs font-bold leading-tight">
+                <p className="text-sm font-bold leading-tight">
                   You're on the Free plan.
                 </p>
-                <p className="text-[10px] text-purple-200 mt-0.5">
+                <p className="text-xs text-purple-200 mt-1">
                   Upgrade to go Pro
                 </p>
               </div>
             </div>
             <button
               onClick={() => toast.info('Pro Plan: Unlimited classrooms, automated grading, priority analytics.')}
-              className="mt-3 w-full py-1.5 px-3 rounded-xl bg-white text-[#7047EB] hover:bg-purple-50 text-xs font-extrabold shadow-xs transition-colors text-center"
+              className="mt-3 w-full py-2 px-3 rounded-xl bg-white text-[#7047EB] hover:bg-purple-50 text-sm font-bold shadow-xs transition-colors text-center"
             >
               Upgrade
             </button>
@@ -251,11 +251,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {/* Student Specific Sidebar Footer: Settings & Toggle, Help, User Card */}
         {isStudent && !isCollapsed && (
-          <div className="px-3 py-2 space-y-1 border-t border-slate-100/80 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400">
+          <div className="px-3 py-2 space-y-1.5 border-t border-slate-100/80 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-400">
             {/* Settings & Toggle Switch */}
-            <div className="flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
+              <div className="flex items-center gap-2.5">
                 <Settings className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Settings</span>
               </div>
               <button
                 onClick={toggleTheme}
@@ -273,10 +274,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* Help */}
             <button
               onClick={() => toast.info('EduSphere AI Helpdesk: 24/7 student support active.')}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 text-left transition-colors"
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 text-left transition-colors"
             >
               <HelpCircle className="w-4 h-4 text-slate-600 dark:text-slate-400" />
-              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">Help</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Help</span>
             </button>
           </div>
         )}
@@ -285,7 +286,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {user && (
           <div className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <div
-              className={`flex items-center gap-3 p-1 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors flex-1 min-w-0 ${
+              className={`flex items-center gap-3 p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors flex-1 min-w-0 ${
                 isCollapsed ? 'justify-center p-1' : ''
               }`}
             >
@@ -296,15 +297,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     : user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'
                 }
                 alt={user.name}
-                className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700 flex-shrink-0"
+                className="w-9 h-9 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700 flex-shrink-0"
               />
               {!isCollapsed && (
                 <div className="flex flex-col min-w-0">
-                  <span className="text-xs font-semibold text-slate-900 dark:text-slate-100 truncate">
+                  <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
                     {user.name || 'Maheswari'}
                   </span>
                   {!isStudent && (
-                    <span className="text-[10px] text-slate-400 capitalize">
+                    <span className="text-xs text-slate-400 capitalize">
                       {user.role}
                     </span>
                   )}
@@ -320,7 +321,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   toast.success('Signed out successfully.');
                   window.location.href = '/auth/login';
                 }}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors ml-1"
+                className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors ml-1"
                 title="Sign Out"
                 data-testid="sidebar-logout-btn"
               >
