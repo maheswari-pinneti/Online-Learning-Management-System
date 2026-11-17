@@ -18,6 +18,8 @@ export const STORAGE_KEYS = {
   QUIZ_SUBMISSIONS: `${STORAGE_PREFIX}quiz_submissions`,
   NOTIFICATIONS: `${STORAGE_PREFIX}notifications`,
   ACTIVITIES: `${STORAGE_PREFIX}activities`,
+  PERMISSIONS: `${STORAGE_PREFIX}permissions`,
+  CLASS_ATTENDANCE: `${STORAGE_PREFIX}class_attendance`,
 } as const;
 
 export class StorageService {

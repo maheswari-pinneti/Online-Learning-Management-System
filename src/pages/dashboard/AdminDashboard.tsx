@@ -29,6 +29,7 @@ import {
   UserPlus,
   Layers,
   Link2,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -43,6 +44,7 @@ import { useCourses } from '@/context/CourseContext';
 import { useStudents } from '@/context/StudentContext';
 import { useInstructors } from '@/context/InstructorContext';
 import { useEnrollment } from '@/context/EnrollmentContext';
+import { usePermissions } from '@/context/PermissionContext';
 import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
 import { Badge } from '@/components/common/Badge';
@@ -105,12 +107,20 @@ export const AdminDashboard: React.FC = () => {
   const { students, addStudent, updateStudent, deleteStudent } = useStudents();
   const { instructors, addInstructor, updateInstructor, deleteInstructor, assignCourseToInstructor } = useInstructors();
   const { enrollments, enrollStudent, unenrollStudent } = useEnrollment();
+  const {
+    globalPolicy,
+    updateGlobalPolicy,
+    instructorPermissions,
+    toggleInstructorCanAddStudents,
+    toggleClassJoinRequirement,
+    classAttendanceRecords,
+  } = usePermissions();
   const navigate = useNavigate();
 
   // ----------------------------------------------------------------------
   // CRUD COMMAND CENTER STATE & HANDLERS
   // ----------------------------------------------------------------------
-  const [crudActiveTab, setCrudActiveTab] = useState<'courses' | 'students' | 'instructors' | 'enrollments'>('courses');
+  const [crudActiveTab, setCrudActiveTab] = useState<'courses' | 'students' | 'instructors' | 'enrollments' | 'permissions'>('courses');
   const [crudSearch, setCrudSearch] = useState('');
 
   // Course CRUD Modal State
@@ -425,69 +435,96 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Admin Actions Pill Bar */}
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <button
-              onClick={() => setIsProfileModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 text-[#7047EB] dark:text-purple-300 text-xs font-bold transition-all active:scale-95 border border-purple-200/60 dark:border-purple-800/40"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>Update Profile</span>
-            </button>
-            <button
-              onClick={handleOpenAddCourse}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all active:scale-95"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ Add Course</span>
-            </button>
-            <button
-              onClick={handleOpenAddStudent}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#7047EB] hover:bg-[#5e38d4] text-white text-xs font-bold shadow-xs transition-all active:scale-95"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>+ Add Student</span>
-            </button>
-            <button
-              onClick={handleOpenAddInstructor}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all active:scale-95"
-            >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span>+ Add Faculty</span>
-            </button>
-            <button
-              onClick={() => setIsEnrollModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-xs transition-all active:scale-95"
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>Quick Enroll</span>
-            </button>
-            <Link
-              to="/courses"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all"
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>Catalog</span>
-            </Link>
-            <Link
-              to="/students"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all"
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span>Directory</span>
-            </Link>
-            <Link
-              to="/reports"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all"
-            >
-              <Award className="w-3.5 h-3.5" />
-              <span>Reports</span>
-            </Link>
+          {/* Quick Admin Actions Toolbar */}
+          <div className="space-y-2.5 pt-1">
+            {/* Action Row 1: Core Institutional CRUD Shortcuts */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-0.5 hidden sm:inline">
+                Quick Add:
+              </span>
+              <button
+                onClick={handleOpenAddCourse}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs transition-all active:scale-95"
+                title="Create a new course"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Course</span>
+              </button>
+              <button
+                onClick={handleOpenAddStudent}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#7047EB] hover:bg-[#5e38d4] text-white text-xs font-semibold shadow-2xs transition-all active:scale-95"
+                title="Register a new student"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Add Student</span>
+              </button>
+              <button
+                onClick={handleOpenAddInstructor}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-2xs transition-all active:scale-95"
+                title="Onboard a new faculty member"
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>Add Faculty</span>
+              </button>
+              <button
+                onClick={() => setIsEnrollModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold shadow-2xs transition-all active:scale-95"
+                title="Quickly enroll a student in a course"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Quick Enroll</span>
+              </button>
+            </div>
+
+            {/* Action Row 2: Governance & Navigation Shortcuts */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-0.5 hidden sm:inline">
+                Shortcuts:
+              </span>
+              <Link
+                to="/permissions"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 text-[#7047EB] dark:text-purple-300 text-xs font-bold border border-purple-200/70 dark:border-purple-800/50 transition-colors shadow-2xs"
+                title="Instructor Permissions & Live Class Attendance Governance"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-[#7047EB] dark:text-purple-400" />
+                <span>Permissions</span>
+              </Link>
+              <button
+                onClick={() => setIsProfileModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium transition-colors"
+                title="Update Admin Profile"
+                aria-label="Update Profile"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-slate-500" />
+                <span>Update Profile</span>
+              </button>
+              <Link
+                to="/courses"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium transition-colors"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+                <span>Catalog</span>
+              </Link>
+              <Link
+                to="/students"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium transition-colors"
+              >
+                <Users className="w-3.5 h-3.5 text-slate-500" />
+                <span>Directory</span>
+              </Link>
+              <Link
+                to="/reports"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium transition-colors"
+              >
+                <Award className="w-3.5 h-3.5 text-slate-500" />
+                <span>Reports</span>
+              </Link>
+            </div>
           </div>
         </div>
 
         {/* Right: 3 Metric Cards side-by-side */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:min-w-[580px]">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 lg:min-w-[460px] xl:min-w-[540px] shrink-0">
           {/* Card 1: Students */}
           <div className="flex items-center justify-between p-4 rounded-2xl bg-[#F5F2FD] dark:bg-purple-950/20 border border-purple-100/80 dark:border-purple-900/40 shadow-xs hover:shadow-sm transition-all">
             <div>
@@ -612,6 +649,17 @@ export const AdminDashboard: React.FC = () => {
                 Quick Enroll
               </Button>
             )}
+            {crudActiveTab === 'permissions' && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => navigate('/permissions')}
+                className="bg-[#7047EB] hover:bg-[#5E36D9] text-white"
+                leftIcon={<ShieldCheck className="w-4 h-4" />}
+              >
+                Open Full Permissions Console
+              </Button>
+            )}
           </div>
         </div>
 
@@ -620,11 +668,10 @@ export const AdminDashboard: React.FC = () => {
           <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/80 overflow-x-auto text-xs font-semibold">
             <button
               onClick={() => { setCrudActiveTab('courses'); setCrudSearch(''); }}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
-                crudActiveTab === 'courses'
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${crudActiveTab === 'courses'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
+                }`}
             >
               <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
               <span>Courses ({courses.length})</span>
@@ -632,11 +679,10 @@ export const AdminDashboard: React.FC = () => {
 
             <button
               onClick={() => { setCrudActiveTab('students'); setCrudSearch(''); }}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
-                crudActiveTab === 'students'
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${crudActiveTab === 'students'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
+                }`}
             >
               <GraduationCap className="w-3.5 h-3.5 text-[#7047EB]" />
               <span>Students ({students.length})</span>
@@ -644,11 +690,10 @@ export const AdminDashboard: React.FC = () => {
 
             <button
               onClick={() => { setCrudActiveTab('instructors'); setCrudSearch(''); }}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
-                crudActiveTab === 'instructors'
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${crudActiveTab === 'instructors'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
+                }`}
             >
               <Users className="w-3.5 h-3.5 text-blue-500" />
               <span>Faculty ({instructors.length})</span>
@@ -656,14 +701,24 @@ export const AdminDashboard: React.FC = () => {
 
             <button
               onClick={() => { setCrudActiveTab('enrollments'); setCrudSearch(''); }}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
-                crudActiveTab === 'enrollments'
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${crudActiveTab === 'enrollments'
                   ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-bold'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
+                }`}
             >
               <Layers className="w-3.5 h-3.5 text-amber-500" />
               <span>Enrollments ({enrollments.length})</span>
+            </button>
+
+            <button
+              onClick={() => { setCrudActiveTab('permissions'); setCrudSearch(''); }}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${crudActiveTab === 'permissions'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+              <span>Permissions ({instructorPermissions.length})</span>
             </button>
           </div>
 
@@ -1014,6 +1069,155 @@ export const AdminDashboard: React.FC = () => {
             </table>
           </div>
         )}
+
+        {/* Tab 5: INSTRUCTOR PERMISSIONS & CLASS GOVERNANCE */}
+        {crudActiveTab === 'permissions' && (
+          <div className="space-y-4">
+            {/* Governance Header Banner */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-transparent border border-purple-200 dark:border-purple-900/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-xs font-bold text-[#7047EB] dark:text-purple-400 uppercase tracking-wider">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Instructor Authorization & Class-Join Guard</span>
+                </div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">
+                  Permissions: Adding Students After Joining Classes
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Configure whether faculty can add students, and enforce the policy requiring students to attend/join live sessions first.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    updateGlobalPolicy({
+                      enforceClassJoinPrerequisite: !globalPolicy.enforceClassJoinPrerequisite,
+                    })
+                  }
+                  className="text-xs"
+                >
+                  {globalPolicy.enforceClassJoinPrerequisite ? '✓ Prerequisite: Mandatory' : 'Prerequisite: Optional'}
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => navigate('/permissions')}
+                  className="bg-[#7047EB] hover:bg-[#5E36D9] text-white text-xs"
+                  leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
+                >
+                  Full Permissions Page
+                </Button>
+              </div>
+            </div>
+
+            {/* Quick Permissions Table */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-slate-50/80 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider border-b border-slate-100 dark:border-slate-800">
+                  <tr>
+                    <th className="py-3 px-4">Faculty Member</th>
+                    <th className="py-3 px-4">Can Add Students</th>
+                    <th className="py-3 px-4">Class Join Requirement</th>
+                    <th className="py-3 px-4">Auto-Enroll on Join</th>
+                    <th className="py-3 px-4">Verified Attendees</th>
+                    <th className="py-3 px-4 text-right">Quick Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
+                  {instructorPermissions.map((setting) => {
+                    const inst = instructors.find((i) => i.id === setting.instructorId);
+                    const attendeesCount = classAttendanceRecords.filter(
+                      (r) => r.instructorId === setting.instructorId
+                    ).length;
+
+                    return (
+                      <tr
+                        key={setting.instructorId}
+                        className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                      >
+                        <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              src={
+                                inst?.profileImage ||
+                                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'
+                              }
+                              alt={setting.instructorName}
+                              className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200 dark:ring-slate-700"
+                            />
+                            <div>
+                              <span>{setting.instructorName}</span>
+                              <span className="block text-[11px] text-slate-400 font-normal">
+                                {setting.email}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <button
+                            onClick={() => toggleInstructorCanAddStudents(setting.instructorId)}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-all ${setting.canAddStudents
+                                ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700'
+                              }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${setting.canAddStudents ? 'bg-emerald-500' : 'bg-slate-400'
+                                }`}
+                            />
+                            {setting.canAddStudents ? 'Allowed to Add' : 'Restricted'}
+                          </button>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <button
+                            onClick={() => toggleClassJoinRequirement(setting.instructorId)}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold transition-all ${setting.requireClassJoinFirst
+                                ? 'bg-purple-50 dark:bg-purple-950/50 text-[#7047EB] dark:text-purple-300 border border-purple-200 dark:border-purple-800'
+                                : 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800'
+                              }`}
+                          >
+                            <ShieldCheck className="w-3 h-3 text-[#7047EB]" />
+                            <span>
+                              {setting.requireClassJoinFirst
+                                ? 'Mandatory: After Joining Classes Only'
+                                : 'Unrestricted'}
+                            </span>
+                          </button>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">
+                            {setting.autoEnrollOnClassJoin ? 'Active (Auto)' : 'Manual Instructor Approval'}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4">
+                          <span className="font-bold text-blue-600 dark:text-blue-400">
+                            {attendeesCount} Students Joined
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4 text-right">
+                          <button
+                            onClick={() => navigate('/permissions')}
+                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-[#7047EB] dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/50 transition-colors"
+                          >
+                            Manage Rules →
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ========================================================= */}
@@ -1200,9 +1404,8 @@ export const AdminDashboard: React.FC = () => {
                       <tr
                         key={st.id}
                         onClick={() => toggleStudentSelection(st.id)}
-                        className={`group hover:bg-slate-50/70 dark:hover:bg-slate-800/40 cursor-pointer transition-colors ${
-                          isChecked ? 'bg-purple-50/40 dark:bg-purple-950/10' : ''
-                        }`}
+                        className={`group hover:bg-slate-50/70 dark:hover:bg-slate-800/40 cursor-pointer transition-colors ${isChecked ? 'bg-purple-50/40 dark:bg-purple-950/10' : ''
+                          }`}
                       >
                         <td className="py-3 px-2">
                           <button
@@ -1211,11 +1414,10 @@ export const AdminDashboard: React.FC = () => {
                               e.stopPropagation();
                               toggleStudentSelection(st.id);
                             }}
-                            className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${
-                              isChecked
+                            className={`w-4 h-4 rounded flex items-center justify-center transition-colors ${isChecked
                                 ? 'bg-[#7047EB] text-white'
                                 : 'border border-slate-300 dark:border-slate-600 text-transparent'
-                            }`}
+                              }`}
                           >
                             <Check className="w-3 h-3 stroke-[3]" />
                           </button>
@@ -1705,9 +1907,8 @@ export const AdminDashboard: React.FC = () => {
             <div className="flex items-center justify-center gap-3 z-10">
               <button
                 onClick={() => setIsMicMuted(!isMicMuted)}
-                className={`p-2.5 rounded-full transition-colors ${
-                  isMicMuted ? 'bg-rose-600 text-white' : 'bg-white/20 text-white hover:bg-white/30'
-                }`}
+                className={`p-2.5 rounded-full transition-colors ${isMicMuted ? 'bg-rose-600 text-white' : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
                 title={isMicMuted ? 'Unmute Microphone' : 'Mute Microphone'}
               >
                 {isMicMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
@@ -1715,9 +1916,8 @@ export const AdminDashboard: React.FC = () => {
 
               <button
                 onClick={() => setIsVideoOff(!isVideoOff)}
-                className={`p-2.5 rounded-full transition-colors ${
-                  isVideoOff ? 'bg-rose-600 text-white' : 'bg-white/20 text-white hover:bg-white/30'
-                }`}
+                className={`p-2.5 rounded-full transition-colors ${isVideoOff ? 'bg-rose-600 text-white' : 'bg-white/20 text-white hover:bg-white/30'
+                  }`}
                 title={isVideoOff ? 'Enable Video' : 'Disable Video'}
               >
                 {isVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
