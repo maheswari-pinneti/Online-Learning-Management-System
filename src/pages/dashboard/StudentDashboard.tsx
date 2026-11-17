@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import {
   ChevronRight,
@@ -19,13 +19,22 @@ import {
   Menu,
   LogOut,
   Edit3,
+  GraduationCap,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/context/AuthContext';
+import { useCourses } from '@/context/CourseContext';
 import { useEnrollment } from '@/context/EnrollmentContext';
 import { useLearning } from '@/context/LearningContext';
 import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
+import { Course } from '@/types';
+import { INITIAL_COURSES } from '@/utils/mockData';
+import {
+  getCourseTutorPersona,
+  CourseQuizQuestion,
+  CourseTutorPersona,
+} from '@/utils/courseChatbotEngine';
 
 // -------------------------------------------------------------
 // VECTOR ILLUSTRATION: CYBER CAT AI COMPANION
@@ -350,10 +359,52 @@ const YourCircleIllustration: React.FC = () => (
 );
 
 // -------------------------------------------------------------
+// DYNAMIC COURSE TUTOR AVATAR
+// -------------------------------------------------------------
+const CourseTutorAvatar: React.FC<{
+  persona: CourseTutorPersona;
+  category?: string;
+  size?: number;
+  onClick?: () => void;
+}> = ({ persona, category = '', size = 135, onClick }) => {
+  const isCyber =
+    category.toLowerCase().includes('cyber') ||
+    persona.tutorName.toLowerCase().includes('cyber') ||
+    persona.tutorName.toLowerCase().includes('cat');
+
+  if (isCyber) {
+    return (
+      <div className="cursor-pointer hover:scale-105 transition-transform" onClick={onClick}>
+        <CyberCatIllustration size={size} />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={onClick}
+      className="relative flex items-center justify-center cursor-pointer hover:scale-105 transition-transform my-2"
+      style={{ width: size, height: size }}
+    >
+      <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-purple-500/25 via-indigo-400/25 to-pink-500/20 blur-xl animate-pulse" />
+      <div className="w-28 h-28 rounded-full bg-gradient-to-tr from-[#5B3DF5] to-[#8C62FF] flex flex-col items-center justify-center text-white shadow-xl shadow-purple-500/30 border-4 border-white dark:border-slate-800">
+        <span className="text-3xl mb-1 select-none">{persona.avatarBadge.slice(0, 2)}</span>
+        <span className="text-[10px] font-black uppercase tracking-wider text-purple-100">AI Fellow</span>
+      </div>
+      <div className="absolute -bottom-1 px-2.5 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-bold shadow-md flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+        Online
+      </div>
+    </div>
+  );
+};
+
+// -------------------------------------------------------------
 // MAIN COMPONENT: STUDENT DASHBOARD
 // -------------------------------------------------------------
 export const StudentDashboard: React.FC = () => {
   const { user, logout, updateProfile } = useAuth();
+  const { courses } = useCourses();
   const { enrollments, getStudentEnrollments } = useEnrollment();
   const { quizSubmissions, assignmentSubmissions } = useLearning();
   const navigate = useNavigate();
@@ -363,6 +414,42 @@ export const StudentDashboard: React.FC = () => {
     if (!user) return [];
     return getStudentEnrollments(user.id);
   }, [user, enrollments, getStudentEnrollments]);
+
+  // Map student's active enrollments to full Course objects with fallback to catalog
+  const myEnrolledCourses = useMemo(() => {
+    const list = myEnrollments
+      .map((enrollment) => courses.find((c) => c.id === enrollment.courseId))
+      .filter((c): c is Course => Boolean(c));
+
+    if (list.length === 0) {
+      const cyberCourse = courses.find((c) => c.id === 'course-cyber-1') || INITIAL_COURSES[0];
+      return cyberCourse ? [cyberCourse] : INITIAL_COURSES.slice(0, 3);
+    }
+    return list;
+  }, [myEnrollments, courses]);
+
+  // Selected Active Course for the AI Tutor
+  const [selectedTutorCourseId, setSelectedTutorCourseId] = useState<string>('');
+
+  const activeTutorCourse = useMemo(() => {
+    if (selectedTutorCourseId) {
+      const found =
+        myEnrolledCourses.find((c) => c.id === selectedTutorCourseId) ||
+        courses.find((c) => c.id === selectedTutorCourseId);
+      if (found) return found;
+    }
+    return myEnrolledCourses[0] || courses[0] || INITIAL_COURSES[0];
+  }, [selectedTutorCourseId, myEnrolledCourses, courses]);
+
+  // Course-specific AI Fellow Persona
+  const tutorPersona = useMemo(() => {
+    return getCourseTutorPersona(activeTutorCourse);
+  }, [activeTutorCourse]);
+
+  // Active quiz / interview question state
+  const [activePracticeQuestion, setActivePracticeQuestion] = useState<CourseQuizQuestion>(
+    tutorPersona.interviewQuestion
+  );
 
   // Dynamic progress synchronization (defaults to 17% matching spec)
   const lessonProgress = useMemo(() => {
@@ -430,17 +517,33 @@ export const StudentDashboard: React.FC = () => {
   >([
     {
       sender: 'cat',
-      text: "Meow! Ready to secure the cloud? I'm your AI fellow, Cyber Cat. Ask me anything or try a quick quiz!",
+      text: tutorPersona.welcomeMessage,
       time: 'Just now',
     },
   ]);
+
+  // Automatically adapt greeting and active question whenever active enrolled course changes
+  useEffect(() => {
+    if (activeTutorCourse) {
+      setChatMessages([
+        {
+          sender: 'cat',
+          text: tutorPersona.welcomeMessage,
+          time: 'Just now',
+        },
+      ]);
+      setActivePracticeQuestion(tutorPersona.interviewQuestion);
+    }
+  }, [activeTutorCourse?.id, tutorPersona.welcomeMessage, tutorPersona.interviewQuestion]);
 
   // Handle Fellow Quick Prompts
   const handleQuickPrompt = (promptText: string) => {
     setPracticeType(promptText);
     if (promptText.includes('Interview')) {
+      setActivePracticeQuestion(tutorPersona.interviewQuestion);
       setIsPracticeModalOpen(true);
     } else if (promptText.includes('Quiz')) {
+      setActivePracticeQuestion(tutorPersona.quizQuestion);
       setIsPracticeModalOpen(true);
     } else {
       // Recap prompt
@@ -450,11 +553,11 @@ export const StudentDashboard: React.FC = () => {
         { sender: 'user', text: promptText, time: now },
         {
           sender: 'cat',
-          text: "Here is your recap: In 'Inside the Breach - They're in the cloud', you learned AWS IAM privilege escalation patterns and automated GuardDuty detections. Next step: complete Lab 3 on IAM role trust policies!",
+          text: tutorPersona.recapText,
           time: now,
         },
       ]);
-      toast.success('Cyber Cat prepared your lesson recap!');
+      toast.success(`${tutorPersona.tutorName} prepared your lesson recap!`);
     }
   };
 
@@ -469,14 +572,10 @@ export const StudentDashboard: React.FC = () => {
     setChatMessages((prev) => [...prev, { sender: 'user', text: userText, time: now }]);
     setChatInput('');
 
-    // Simulated Cyber Cat AI Response
+    // Course-Aware AI Response
     setTimeout(() => {
-      let reply = "Paws up! In cloud breach forensics, always inspect CloudTrail logs for 'AssumeRole' API calls.";
-      if (userText.toLowerCase().includes('quiz') || userText.toLowerCase().includes('practice')) {
-        reply = "Let's test your skills! What HTTP status code does an unauthorized AWS S3 request return? (Hint: 403 Forbidden).";
-      } else if (userText.toLowerCase().includes('hello') || userText.toLowerCase().includes('hi')) {
-        reply = "Hello Maheswari! Cyber Cat reporting for duty. What cyber challenge are we tackling today?";
-      }
+      const studentName = user?.name || 'Maheswari';
+      const reply = tutorPersona.generateReply(userText, activeTutorCourse, studentName);
 
       setChatMessages((prev) => [
         ...prev,
@@ -486,7 +585,7 @@ export const StudentDashboard: React.FC = () => {
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
-    }, 600);
+    }, 500);
   };
 
   const outletContext = useOutletContext<{ onToggleMobileMenu?: () => void }>() || {};
@@ -765,37 +864,81 @@ export const StudentDashboard: React.FC = () => {
         </div>
 
         {/* ------------------------------------------------------- */}
-        {/* RIGHT 4 COLS: YOUR FELLOW (CYBER CAT AI COMPANION)      */}
+        {/* RIGHT 4 COLS: COURSE-SPECIFIC AI FELLOW COMPANION       */}
         {/* ------------------------------------------------------- */}
         <div className="lg:col-span-4">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-100 dark:border-slate-800/80 shadow-xs flex flex-col justify-between min-h-[580px]">
-            {/* Top row with expand icon and header */}
-            <div className="relative flex items-center justify-center">
-              <button
-                onClick={() => setIsFellowExpanded(!isFellowExpanded)}
-                className="absolute left-0 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1 rounded-lg"
-                title={isFellowExpanded ? 'Compact view' : 'Expand Fellow panel'}
-              >
-                {isFellowExpanded ? (
-                  <Minimize2 className="w-4 h-4" />
-                ) : (
-                  <Maximize2 className="w-4 h-4" />
-                )}
-              </button>
-              <span className="text-[11px] font-bold tracking-widest text-slate-500 dark:text-slate-400 uppercase text-center">
-                YOUR FELLOW
-              </span>
+            {/* Top row with expand icon, header, and active course selector */}
+            <div className="space-y-2.5">
+              <div className="relative flex items-center justify-between">
+                <button
+                  onClick={() => setIsFellowExpanded(!isFellowExpanded)}
+                  className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors p-1 rounded-lg"
+                  title={isFellowExpanded ? 'Compact view' : 'Expand Fellow panel'}
+                >
+                  {isFellowExpanded ? (
+                    <Minimize2 className="w-4 h-4" />
+                  ) : (
+                    <Maximize2 className="w-4 h-4" />
+                  )}
+                </button>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[11px] font-bold tracking-widest text-slate-500 dark:text-slate-400 uppercase">
+                    YOUR FELLOW
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-950/50 text-[#7047EB] dark:text-purple-300 border border-purple-200/80 dark:border-purple-800/80">
+                  {tutorPersona.avatarBadge.split(' ')[0]} AI
+                </span>
+              </div>
+
+              {/* Course Selector Dropdown: Dynamically shifts Fellow persona to any enrolled course */}
+              <div className="bg-slate-50 dark:bg-slate-800/70 p-2.5 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 px-1">
+                  <span className="flex items-center gap-1 truncate">
+                    <GraduationCap className="w-3.5 h-3.5 text-[#7047EB]" />
+                    COURSE TUTOR
+                  </span>
+                  <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded">
+                    Enrolled ({myEnrolledCourses.length})
+                  </span>
+                </div>
+                <select
+                  aria-label="Select Enrolled Course Tutor"
+                  value={activeTutorCourse?.id || ''}
+                  onChange={(e) => setSelectedTutorCourseId(e.target.value)}
+                  className="w-full text-xs font-semibold py-1.5 px-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-[#7047EB]/20 transition-all cursor-pointer truncate"
+                >
+                  {myEnrolledCourses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.category ? `[${c.category}] ` : ''}{c.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            {/* Center Profile: Cyber Cat */}
-            <div className="flex flex-col items-center text-center my-3">
+            {/* Center Profile: Dynamic Course Tutor Persona */}
+            <div className="flex flex-col items-center text-center my-2">
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                Cyber Cat
+                {tutorPersona.tutorName}
               </h3>
+              <p className="text-[11px] font-semibold text-[#7047EB] dark:text-purple-400 mt-0.5">
+                {tutorPersona.roleTitle}
+              </p>
+              <span className="inline-block text-[10px] text-slate-500 dark:text-slate-400 max-w-[230px] truncate mt-0.5">
+                {tutorPersona.categoryTag}
+              </span>
 
-              {/* Avatar with soft glow */}
-              <div className="my-2 cursor-pointer hover:scale-105 transition-transform" onClick={() => setIsFellowCallOpen(true)}>
-                <CyberCatIllustration size={135} />
+              {/* Dynamic Course Avatar */}
+              <div className="my-1.5">
+                <CourseTutorAvatar
+                  persona={tutorPersona}
+                  category={activeTutorCourse?.category}
+                  size={135}
+                  onClick={() => setIsFellowCallOpen(true)}
+                />
               </div>
 
               {/* Call Button (Green Outline Pill) */}
@@ -807,8 +950,8 @@ export const StudentDashboard: React.FC = () => {
               </button>
             </div>
 
-            {/* Quick Action Prompt Buttons */}
-            <div className="space-y-2 mt-2">
+            {/* Quick Action Prompt Buttons tailored to Active Course */}
+            <div className="space-y-2 mt-1">
               <button
                 onClick={() => handleQuickPrompt('Interview Practice')}
                 className="w-full py-2 px-4 rounded-xl border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all flex items-center justify-center gap-1.5 shadow-2xs hover:border-slate-300 dark:hover:border-slate-700"
@@ -858,11 +1001,11 @@ export const StudentDashboard: React.FC = () => {
             )}
 
             {/* Bottom Interactive Chat Input Bar */}
-            <form onSubmit={handleSendChat} className="mt-4">
+            <form onSubmit={handleSendChat} className="mt-3">
               <div className="rounded-full bg-slate-100 dark:bg-slate-800/90 px-3.5 py-2 flex items-center gap-2 border border-slate-200/60 dark:border-slate-700 focus-within:ring-2 focus-within:ring-[#7047EB]/20 transition-all">
                 <button
                   type="button"
-                  onClick={() => toast.info('Attach files or code snippet for Cyber Cat review.')}
+                  onClick={() => toast.info(`Attach files or code snippet for ${tutorPersona.tutorName} review.`)}
                   className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
                   title="Attach file"
                 >
@@ -873,7 +1016,7 @@ export const StudentDashboard: React.FC = () => {
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Ask Cyber Cat anything"
+                  placeholder={`Ask ${tutorPersona.tutorName} anything`}
                   className="flex-1 bg-transparent border-0 outline-none text-xs text-slate-800 dark:text-slate-100 placeholder-slate-400 font-medium"
                 />
 
@@ -978,28 +1121,32 @@ export const StudentDashboard: React.FC = () => {
         </Modal>
       )}
 
-      {/* MODAL 2: LIVE CALL WITH CYBER CAT */}
+      {/* MODAL 2: LIVE CALL WITH COURSE TUTOR */}
       {isFellowCallOpen && (
         <Modal
           isOpen={isFellowCallOpen}
           onClose={() => setIsFellowCallOpen(false)}
-          title="Cyber Cat Live Fellow Call"
-          description="Interactive AI Cybersecurity Tutoring Session"
+          title={`${tutorPersona.tutorName} Live Tutoring Session`}
+          description={`Interactive AI Tutoring · ${activeTutorCourse?.title || 'Course Curriculum'}`}
           maxWidth="md"
         >
           <div className="space-y-6 py-4 flex flex-col items-center text-center">
             {/* Pulsing Avatar */}
             <div className="relative">
               <div className="absolute inset-0 rounded-full bg-emerald-400/20 blur-2xl animate-pulse" />
-              <CyberCatIllustration size={150} />
+              <CourseTutorAvatar
+                persona={tutorPersona}
+                category={activeTutorCourse?.category}
+                size={150}
+              />
             </div>
 
             <div>
               <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                Cyber Cat is Listening...
+                {tutorPersona.tutorName} is Listening...
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs">
-                "Hi Maheswari! I'm analyzing your latest progress in cloud defenses. Ask me anything or practice your technical interview!"
+                "Hi {user?.name || 'Maheswari'}! I'm analyzing your latest progress in {activeTutorCourse?.title}. Ask me anything or practice your technical interview!"
               </p>
             </div>
 
@@ -1026,7 +1173,7 @@ export const StudentDashboard: React.FC = () => {
               <button
                 onClick={() => {
                   setIsFellowCallOpen(false);
-                  toast.success('Call ended. Cyber Cat saved session notes to your dashboard.');
+                  toast.success(`Call ended. ${tutorPersona.tutorName} saved session notes to your dashboard.`);
                 }}
                 className="w-13 h-13 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 transition-all p-3"
                 title="End Call"
@@ -1096,38 +1243,35 @@ export const StudentDashboard: React.FC = () => {
         <Modal
           isOpen={isPracticeModalOpen}
           onClose={() => setIsPracticeModalOpen(false)}
-          title={practiceType}
-          description="Interactive Cyber Cat Challenge"
+          title={`${practiceType} · ${tutorPersona.tutorName}`}
+          description={`Interactive ${activeTutorCourse?.title ? activeTutorCourse.title.split(',')[0].split(':')[0] : 'Course'} Challenge`}
           maxWidth="md"
         >
           <div className="space-y-4 py-2 text-xs">
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#5B3DF5]">
-                  Question 1 of 3
+                  {practiceType}
                 </span>
-                <span className="text-[10px] text-slate-400">Cloud Defense</span>
+                <span className="text-[10px] text-slate-400 font-semibold">
+                  {activePracticeQuestion?.category || tutorPersona.categoryTag}
+                </span>
               </div>
-              <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                When an attacker compromises an EC2 instance metadata service (IMDSv1), which mechanism best mitigates token exfiltration?
+              <p className="text-sm font-semibold text-slate-900 dark:text-white leading-relaxed">
+                {activePracticeQuestion?.question || tutorPersona.interviewQuestion.question}
               </p>
             </div>
 
             <div className="space-y-2">
-              {[
-                { label: 'A', text: 'Enforce IMDSv2 requiring session-oriented PUT requests' },
-                { label: 'B', text: 'Disable IAM roles on EC2 entirely' },
-                { label: 'C', text: 'Increase security group ingress ports' },
-                { label: 'D', text: 'Allow public access to S3 buckets' },
-              ].map((opt) => (
+              {(activePracticeQuestion?.options || tutorPersona.interviewQuestion.options).map((opt) => (
                 <button
                   key={opt.label}
                   onClick={() => {
-                    if (opt.label === 'A') {
-                      toast.success('Correct! IMDSv2 uses session-oriented tokens to prevent SSRF vulnerabilities.');
+                    if (opt.isCorrect) {
+                      toast.success(`Correct! ${activePracticeQuestion?.explanation || tutorPersona.interviewQuestion.explanation}`);
                       setIsPracticeModalOpen(false);
                     } else {
-                      toast.error('Incorrect. Try again! IMDSv2 is the AWS best practice.');
+                      toast.error(`Incorrect. Try again! ${activePracticeQuestion?.explanation || tutorPersona.interviewQuestion.explanation}`);
                     }
                   }}
                   className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-[#5B3DF5] hover:bg-purple-50/50 dark:hover:bg-purple-950/20 text-left flex items-center gap-3 transition-all"
