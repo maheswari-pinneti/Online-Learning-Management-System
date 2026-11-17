@@ -22,6 +22,13 @@ import {
   Copy,
   Edit3,
   Shield,
+  Plus,
+  Trash2,
+  Search,
+  UserCheck,
+  UserPlus,
+  Layers,
+  Link2,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -38,8 +45,14 @@ import { useInstructors } from '@/context/InstructorContext';
 import { useEnrollment } from '@/context/EnrollmentContext';
 import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
+import { Badge } from '@/components/common/Badge';
+import { CourseModal } from '@/pages/courses/CourseModal';
+import { StudentModal } from '@/pages/students/StudentModal';
+import { InstructorModal } from '@/pages/instructors/InstructorModal';
+import { AssignCourseModal } from '@/pages/instructors/AssignCourseModal';
 import { INITIAL_UPCOMING_CLASSES } from '@/utils/mockData';
-import { UpcomingClass } from '@/types';
+import { UpcomingClass, Course, Student, Instructor } from '@/types';
+import { CourseFormData, StudentFormData, InstructorFormData } from '@/utils/validators';
 
 // ----------------------------------------------------------------------
 // DATA TYPES & MOCKS FOR SCHOOOLI ADMIN DESIGN SPEC
@@ -88,11 +101,202 @@ const DONUT_DATA = [
 
 export const AdminDashboard: React.FC = () => {
   const { user, updateProfile } = useAuth();
-  const { courses } = useCourses();
-  const { students } = useStudents();
-  const { instructors } = useInstructors();
-  const { enrollments } = useEnrollment();
+  const { courses, addCourse, updateCourse, deleteCourse } = useCourses();
+  const { students, addStudent, updateStudent, deleteStudent } = useStudents();
+  const { instructors, addInstructor, updateInstructor, deleteInstructor, assignCourseToInstructor } = useInstructors();
+  const { enrollments, enrollStudent, unenrollStudent } = useEnrollment();
   const navigate = useNavigate();
+
+  // ----------------------------------------------------------------------
+  // CRUD COMMAND CENTER STATE & HANDLERS
+  // ----------------------------------------------------------------------
+  const [crudActiveTab, setCrudActiveTab] = useState<'courses' | 'students' | 'instructors' | 'enrollments'>('courses');
+  const [crudSearch, setCrudSearch] = useState('');
+
+  // Course CRUD Modal State
+  const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+
+  const handleOpenAddCourse = () => {
+    setEditingCourse(null);
+    setIsCourseModalOpen(true);
+  };
+
+  const handleOpenEditCourse = (c: Course) => {
+    setEditingCourse(c);
+    setIsCourseModalOpen(true);
+  };
+
+  const handleSaveCourse = (data: CourseFormData) => {
+    if (editingCourse) {
+      updateCourse(editingCourse.id, {
+        ...data,
+        rating: editingCourse.rating,
+      });
+      toast.success(`Course "${data.title}" updated successfully!`);
+    } else {
+      addCourse(data);
+      toast.success(`Course "${data.title}" created successfully!`);
+    }
+    setIsCourseModalOpen(false);
+    setEditingCourse(null);
+  };
+
+  // Student CRUD Modal State
+  const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+
+  const handleOpenAddStudent = () => {
+    setEditingStudent(null);
+    setIsStudentModalOpen(true);
+  };
+
+  const handleOpenEditStudent = (s: Student) => {
+    setEditingStudent(s);
+    setIsStudentModalOpen(true);
+  };
+
+  const handleSaveStudent = (data: StudentFormData) => {
+    if (editingStudent) {
+      updateStudent(editingStudent.id, data);
+      toast.success(`Student "${data.fullName}" updated successfully!`);
+    } else {
+      addStudent(data);
+      toast.success(`Student "${data.fullName}" registered successfully!`);
+    }
+    setIsStudentModalOpen(false);
+    setEditingStudent(null);
+  };
+
+  // Instructor CRUD Modal State
+  const [isInstructorModalOpen, setIsInstructorModalOpen] = useState(false);
+  const [editingInstructor, setEditingInstructor] = useState<Instructor | null>(null);
+  const [assigningInstructor, setAssigningInstructor] = useState<Instructor | null>(null);
+
+  const handleOpenAddInstructor = () => {
+    setEditingInstructor(null);
+    setIsInstructorModalOpen(true);
+  };
+
+  const handleOpenEditInstructor = (inst: Instructor) => {
+    setEditingInstructor(inst);
+    setIsInstructorModalOpen(true);
+  };
+
+  const handleSaveInstructor = (data: InstructorFormData) => {
+    if (editingInstructor) {
+      updateInstructor(editingInstructor.id, data);
+      toast.success(`Faculty member "${data.name}" updated successfully!`);
+    } else {
+      addInstructor(data);
+      toast.success(`Faculty member "${data.name}" added successfully!`);
+    }
+    setIsInstructorModalOpen(false);
+    setEditingInstructor(null);
+  };
+
+  const handleAssignCourseSubmit = (instructorId: string, courseId: string) => {
+    assignCourseToInstructor(instructorId, courseId);
+    const inst = instructors.find((i) => i.id === instructorId);
+    const crs = courses.find((c) => c.id === courseId);
+    toast.success(`Assigned "${crs?.title}" to ${inst?.name || 'instructor'}!`);
+    setAssigningInstructor(null);
+  };
+
+  // Quick Enroll State
+  const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
+  const [enrollStudentId, setEnrollStudentId] = useState('');
+  const [enrollCourseId, setEnrollCourseId] = useState('');
+
+  const handleQuickEnrollSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!enrollStudentId || !enrollCourseId) {
+      toast.error('Please select both a student and a course.');
+      return;
+    }
+    try {
+      enrollStudent(enrollStudentId, enrollCourseId);
+      const st = students.find((s) => s.id === enrollStudentId);
+      const cr = courses.find((c) => c.id === enrollCourseId);
+      toast.success(`Successfully enrolled ${st?.fullName || 'student'} into ${cr?.title || 'course'}!`);
+      setIsEnrollModalOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Enrollment failed.');
+    }
+  };
+
+  // Delete Entity Modal State
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: 'course' | 'student' | 'instructor' | 'enrollment';
+    id: string;
+    title: string;
+  } | null>(null);
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.type === 'course') {
+      deleteCourse(deleteTarget.id);
+      toast.success(`Course "${deleteTarget.title}" deleted successfully.`);
+    } else if (deleteTarget.type === 'student') {
+      deleteStudent(deleteTarget.id);
+      toast.success(`Student "${deleteTarget.title}" deleted successfully.`);
+    } else if (deleteTarget.type === 'instructor') {
+      deleteInstructor(deleteTarget.id);
+      toast.success(`Faculty member "${deleteTarget.title}" deleted successfully.`);
+    } else if (deleteTarget.type === 'enrollment') {
+      unenrollStudent(deleteTarget.id);
+      toast.success(`Enrollment for "${deleteTarget.title}" removed.`);
+    }
+    setDeleteTarget(null);
+  };
+
+  // Filtered lists for the CRUD hub
+  const filteredCrudCourses = useMemo(() => {
+    if (!crudSearch.trim()) return courses;
+    const q = crudSearch.toLowerCase();
+    return courses.filter(
+      (c) =>
+        c.title.toLowerCase().includes(q) ||
+        c.category.toLowerCase().includes(q) ||
+        c.instructorName.toLowerCase().includes(q)
+    );
+  }, [courses, crudSearch]);
+
+  const filteredCrudStudents = useMemo(() => {
+    if (!crudSearch.trim()) return students;
+    const q = crudSearch.toLowerCase();
+    return students.filter(
+      (s) =>
+        s.fullName.toLowerCase().includes(q) ||
+        s.email.toLowerCase().includes(q) ||
+        s.qualification.toLowerCase().includes(q)
+    );
+  }, [students, crudSearch]);
+
+  const filteredCrudInstructors = useMemo(() => {
+    if (!crudSearch.trim()) return instructors;
+    const q = crudSearch.toLowerCase();
+    return instructors.filter(
+      (i) =>
+        i.name.toLowerCase().includes(q) ||
+        i.email.toLowerCase().includes(q) ||
+        i.specialization.toLowerCase().includes(q)
+    );
+  }, [instructors, crudSearch]);
+
+  const filteredCrudEnrollments = useMemo(() => {
+    if (!crudSearch.trim()) return enrollments;
+    const q = crudSearch.toLowerCase();
+    return enrollments.filter((e) => {
+      const st = students.find((s) => s.id === e.studentId);
+      const cr = courses.find((c) => c.id === e.courseId);
+      return (
+        st?.fullName.toLowerCase().includes(q) ||
+        cr?.title.toLowerCase().includes(q) ||
+        e.status.toLowerCase().includes(q)
+      );
+    });
+  }, [enrollments, students, courses, crudSearch]);
 
   // Profile modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -230,19 +434,47 @@ export const AdminDashboard: React.FC = () => {
               <Edit3 className="w-3.5 h-3.5" />
               <span>Update Profile</span>
             </button>
+            <button
+              onClick={handleOpenAddCourse}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>+ Add Course</span>
+            </button>
+            <button
+              onClick={handleOpenAddStudent}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#7047EB] hover:bg-[#5e38d4] text-white text-xs font-bold shadow-xs transition-all active:scale-95"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>+ Add Student</span>
+            </button>
+            <button
+              onClick={handleOpenAddInstructor}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all active:scale-95"
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              <span>+ Add Faculty</span>
+            </button>
+            <button
+              onClick={() => setIsEnrollModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-xs transition-all active:scale-95"
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Quick Enroll</span>
+            </button>
             <Link
               to="/courses"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all"
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Courses</span>
+              <span>Catalog</span>
             </Link>
             <Link
               to="/students"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold transition-all"
             >
               <Users className="w-3.5 h-3.5" />
-              <span>Students</span>
+              <span>Directory</span>
             </Link>
             <Link
               to="/reports"
@@ -304,7 +536,488 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* ========================================================= */}
-      {/* 2. MAIN 3-COLUMN DASHBOARD GRID (SCHOOOLI EXACT REPLICA)  */}
+      {/* 2. INSTITUTIONAL CRUD COMMAND CENTER                      */}
+      {/* ========================================================= */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-5">
+        {/* Header & Tabs */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800/80 pb-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-[#7047EB] dark:text-purple-300 text-[10px] font-bold uppercase tracking-wider">
+                ADMIN COMMAND CENTER
+              </span>
+              <span className="text-xs text-slate-400">Institutional CRUD Operations</span>
+            </div>
+            <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight mt-1">
+              Entity Records & CRUD Management Hub
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Create, update, assign, and delete curriculum courses, student profiles, and faculty records with live context sync.
+            </p>
+          </div>
+
+          {/* Action Trigger Buttons for Active Entity */}
+          <div className="flex items-center gap-2">
+            {crudActiveTab === 'courses' && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleOpenAddCourse}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Add New Course
+              </Button>
+            )}
+            {crudActiveTab === 'students' && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleOpenAddStudent}
+                className="bg-[#7047EB] hover:bg-[#5e38d4] text-white"
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Add New Student
+              </Button>
+            )}
+            {crudActiveTab === 'instructors' && (
+              <div className="flex gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={handleOpenAddInstructor}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  leftIcon={<Plus className="w-4 h-4" />}
+                >
+                  Add Faculty
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAssigningInstructor(instructors[0] || null)}
+                  leftIcon={<Link2 className="w-4 h-4 text-purple-600" />}
+                >
+                  Assign Course
+                </Button>
+              </div>
+            )}
+            {crudActiveTab === 'enrollments' && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsEnrollModalOpen(true)}
+                className="bg-amber-600 hover:bg-amber-700 text-white"
+                leftIcon={<Plus className="w-4 h-4" />}
+              >
+                Quick Enroll
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Tab Switcher & Search Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/80 overflow-x-auto text-xs font-semibold">
+            <button
+              onClick={() => { setCrudActiveTab('courses'); setCrudSearch(''); }}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
+                crudActiveTab === 'courses'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Courses ({courses.length})</span>
+            </button>
+
+            <button
+              onClick={() => { setCrudActiveTab('students'); setCrudSearch(''); }}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
+                crudActiveTab === 'students'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-[#7047EB]" />
+              <span>Students ({students.length})</span>
+            </button>
+
+            <button
+              onClick={() => { setCrudActiveTab('instructors'); setCrudSearch(''); }}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
+                crudActiveTab === 'instructors'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 text-blue-500" />
+              <span>Faculty ({instructors.length})</span>
+            </button>
+
+            <button
+              onClick={() => { setCrudActiveTab('enrollments'); setCrudSearch(''); }}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all whitespace-nowrap ${
+                crudActiveTab === 'enrollments'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-bold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5 text-amber-500" />
+              <span>Enrollments ({enrollments.length})</span>
+            </button>
+          </div>
+
+          <div className="relative min-w-[240px]">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={crudSearch}
+              onChange={(e) => setCrudSearch(e.target.value)}
+              placeholder={`Search ${crudActiveTab}...`}
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7047EB]"
+            />
+          </div>
+        </div>
+
+        {/* Tab 1: COURSES CRUD TABLE */}
+        {crudActiveTab === 'courses' && (
+          <div className="overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-800">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/60 uppercase text-[10px] font-bold text-slate-500 tracking-wider">
+                <tr>
+                  <th className="py-3 px-4">Course</th>
+                  <th className="py-3 px-4">Category</th>
+                  <th className="py-3 px-4">Instructor</th>
+                  <th className="py-3 px-4">Duration & Level</th>
+                  <th className="py-3 px-4">Tuition</th>
+                  <th className="py-3 px-4">Rating</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredCrudCourses.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                      No courses match your query. Click "Add New Course" to create one.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCrudCourses.slice(0, 6).map((c) => (
+                    <tr key={c.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={c.thumbnail}
+                            alt={c.title}
+                            className="w-10 h-10 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700 shrink-0"
+                          />
+                          <div>
+                            <p className="font-bold text-slate-900 dark:text-white line-clamp-1">
+                              {c.title}
+                            </p>
+                            <p className="text-[11px] text-slate-400 line-clamp-1">
+                              {c.description}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant="purple" size="sm">{c.category}</Badge>
+                      </td>
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300 font-medium">
+                        {c.instructorName}
+                      </td>
+                      <td className="py-3 px-4 text-slate-500 dark:text-slate-400">
+                        <span>{c.duration}</span> &bull; <span className="font-semibold">{c.level}</span>
+                      </td>
+                      <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">
+                        {c.price === 0 ? 'Free' : `$${c.price}`}
+                      </td>
+                      <td className="py-3 px-4 font-semibold text-amber-500">
+                        ⭐ {c.rating.toFixed(1)}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            to={`/courses/${c.id}`}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            title="View Course"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Link>
+                          <button
+                            onClick={() => handleOpenEditCourse(c)}
+                            className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors"
+                            title="Edit Course"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget({ type: 'course', id: c.id, title: c.title })}
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            title="Delete Course"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Tab 2: STUDENTS CRUD TABLE */}
+        {crudActiveTab === 'students' && (
+          <div className="overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-800">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/60 uppercase text-[10px] font-bold text-slate-500 tracking-wider">
+                <tr>
+                  <th className="py-3 px-4">Student</th>
+                  <th className="py-3 px-4">Contact</th>
+                  <th className="py-3 px-4">Qualification</th>
+                  <th className="py-3 px-4">Address</th>
+                  <th className="py-3 px-4">Enrollment Date</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredCrudStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-slate-400">
+                      No students match your query. Click "Add New Student" to register one.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCrudStudents.slice(0, 6).map((st) => (
+                    <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={st.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
+                            alt={st.fullName}
+                            className="w-9 h-9 rounded-full object-cover ring-1 ring-purple-200 dark:ring-purple-900 shrink-0"
+                          />
+                          <div>
+                            <p className="font-bold text-slate-900 dark:text-white">
+                              {st.fullName}
+                            </p>
+                            <p className="text-[11px] text-slate-400">
+                              {st.email}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
+                        {st.mobileNumber}
+                      </td>
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300 font-medium">
+                        {st.qualification}
+                      </td>
+                      <td className="py-3 px-4 text-slate-500 dark:text-slate-400 line-clamp-1 max-w-[160px]">
+                        {st.address}
+                      </td>
+                      <td className="py-3 px-4 text-slate-500 dark:text-slate-400">
+                        {st.enrollmentDate}
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant={st.status === 'Active' ? 'emerald' : 'slate'} size="sm">
+                          {st.status}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditStudent(st)}
+                            className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors"
+                            title="Edit Student"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget({ type: 'student', id: st.id, title: st.fullName })}
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            title="Delete Student"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Tab 3: INSTRUCTORS CRUD TABLE */}
+        {crudActiveTab === 'instructors' && (
+          <div className="overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-800">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/60 uppercase text-[10px] font-bold text-slate-500 tracking-wider">
+                <tr>
+                  <th className="py-3 px-4">Faculty Member</th>
+                  <th className="py-3 px-4">Specialization</th>
+                  <th className="py-3 px-4">Experience</th>
+                  <th className="py-3 px-4">Assigned Tracks</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredCrudInstructors.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400">
+                      No instructors match your query. Click "Add Faculty" to register one.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCrudInstructors.slice(0, 6).map((inst) => (
+                    <tr key={inst.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={inst.profileImage}
+                            alt={inst.name}
+                            className="w-9 h-9 rounded-full object-cover ring-1 ring-blue-200 dark:ring-blue-900 shrink-0"
+                          />
+                          <div>
+                            <p className="font-bold text-slate-900 dark:text-white">
+                              {inst.name}
+                            </p>
+                            <p className="text-[11px] text-slate-400">
+                              {inst.email}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant="blue" size="sm">{inst.specialization}</Badge>
+                      </td>
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300 font-medium">
+                        {inst.experienceYears} Years
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-slate-400 font-semibold">
+                        {inst.assignedCourseIds?.length || 0} courses
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setAssigningInstructor(inst)}
+                            className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-colors"
+                            title="Assign Course"
+                          >
+                            <Link2 className="w-3.5 h-3.5" />
+                          </button>
+                          <Link
+                            to={`/instructors/${inst.id}`}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                            title="View Faculty Profile"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Link>
+                          <button
+                            onClick={() => handleOpenEditInstructor(inst)}
+                            className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors"
+                            title="Edit Instructor"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget({ type: 'instructor', id: inst.id, title: inst.name })}
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            title="Delete Instructor"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Tab 4: ENROLLMENTS CRUD TABLE */}
+        {crudActiveTab === 'enrollments' && (
+          <div className="overflow-x-auto rounded-2xl border border-slate-100 dark:border-slate-800">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 dark:bg-slate-800/60 uppercase text-[10px] font-bold text-slate-500 tracking-wider">
+                <tr>
+                  <th className="py-3 px-4">Student</th>
+                  <th className="py-3 px-4">Enrolled Course</th>
+                  <th className="py-3 px-4">Enrollment Date</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {filteredCrudEnrollments.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-slate-400">
+                      No enrollments found. Click "Quick Enroll" to enroll a student into a course.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCrudEnrollments.slice(0, 6).map((enr) => {
+                    const st = students.find((s) => s.id === enr.studentId);
+                    const cr = courses.find((c) => c.id === enr.courseId);
+                    return (
+                      <tr key={enr.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                        <td className="py-3 px-4">
+                          <p className="font-bold text-slate-900 dark:text-white">
+                            {st?.fullName || 'Student'}
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            {st?.email || enr.studentId}
+                          </p>
+                        </td>
+                        <td className="py-3 px-4">
+                          <p className="font-semibold text-slate-800 dark:text-slate-200">
+                            {cr?.title || 'Course'}
+                          </p>
+                          <p className="text-[11px] text-slate-400">
+                            {cr?.category || 'General'}
+                          </p>
+                        </td>
+                        <td className="py-3 px-4 text-slate-500 dark:text-slate-400">
+                          {enr.enrollmentDate}
+                        </td>
+                        <td className="py-3 px-4">
+                          <Badge variant={enr.status === 'Enrolled' ? 'emerald' : enr.status === 'Completed' ? 'blue' : 'slate'} size="sm">
+                            {enr.status}
+                          </Badge>
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <button
+                            onClick={() => setDeleteTarget({
+                              type: 'enrollment',
+                              id: enr.id,
+                              title: `${st?.fullName || 'Student'} in ${cr?.title || 'course'}`
+                            })}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Unenroll</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ========================================================= */}
+      {/* 3. MAIN 3-COLUMN DASHBOARD GRID (SCHOOOLI EXACT REPLICA)  */}
       {/* ========================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* ======================================================= */}
@@ -1138,6 +1851,129 @@ export const AdminDashboard: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Course Modal (Create & Edit) */}
+      <CourseModal
+        isOpen={isCourseModalOpen}
+        onClose={() => {
+          setIsCourseModalOpen(false);
+          setEditingCourse(null);
+        }}
+        onSubmit={handleSaveCourse}
+        initialCourse={editingCourse}
+      />
+
+      {/* Student Modal (Create & Edit) */}
+      <StudentModal
+        isOpen={isStudentModalOpen}
+        onClose={() => {
+          setIsStudentModalOpen(false);
+          setEditingStudent(null);
+        }}
+        onSubmit={handleSaveStudent}
+        initialStudent={editingStudent}
+      />
+
+      {/* Instructor Modal (Create & Edit) */}
+      <InstructorModal
+        isOpen={isInstructorModalOpen}
+        onClose={() => {
+          setIsInstructorModalOpen(false);
+          setEditingInstructor(null);
+        }}
+        onSubmit={handleSaveInstructor}
+        initialInstructor={editingInstructor}
+      />
+
+      {/* Assign Course Modal */}
+      <AssignCourseModal
+        isOpen={!!assigningInstructor}
+        onClose={() => setAssigningInstructor(null)}
+        instructor={assigningInstructor}
+        onAssign={handleAssignCourseSubmit}
+      />
+
+      {/* Quick Enrollment Modal */}
+      <Modal
+        isOpen={isEnrollModalOpen}
+        onClose={() => setIsEnrollModalOpen(false)}
+        title="Quick Student Enrollment"
+        description="Select a registered student and catalog course to create an active institutional enrollment."
+      >
+        <form onSubmit={handleQuickEnrollSubmit} className="space-y-4 pt-2">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Select Student
+            </label>
+            <select
+              value={enrollStudentId}
+              onChange={(e) => setEnrollStudentId(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7047EB]"
+              required
+            >
+              <option value="">-- Choose Student --</option>
+              {students.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.fullName} ({st.email})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Select Course
+            </label>
+            <select
+              value={enrollCourseId}
+              onChange={(e) => setEnrollCourseId(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#7047EB]"
+              required
+            >
+              <option value="">-- Choose Course --</option>
+              {courses.map((crs) => (
+                <option key={crs.id} value={crs.id}>
+                  {crs.title} ({crs.category})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEnrollModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              className="bg-[#7047EB] hover:bg-[#5e38d4]"
+            >
+              Confirm Enrollment
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Confirm Record Deletion"
+        description={`Are you sure you want to delete "${deleteTarget?.title}"? This action will remove the record from the institutional registry.`}
+      >
+        <div className="flex justify-end gap-2.5 pt-4">
+          <Button variant="outline" size="sm" onClick={() => setDeleteTarget(null)}>
+            Cancel
+          </Button>
+          <Button variant="danger" size="sm" onClick={handleConfirmDelete}>
+            Delete Record
+          </Button>
+        </div>
       </Modal>
     </div>
   );
