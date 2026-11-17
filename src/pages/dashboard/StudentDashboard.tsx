@@ -965,7 +965,7 @@ export const StudentDashboard: React.FC = () => {
                   size="sm"
                   onClick={() => {
                     setIsLessonModalOpen(false);
-                    navigate('/courses/course-1');
+                    navigate('/courses/course-cyber-1');
                   }}
                   className="bg-black text-white hover:bg-slate-800"
                   leftIcon={<Play className="w-3.5 h-3.5 fill-current" />}

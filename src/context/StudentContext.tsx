@@ -16,7 +16,15 @@ const StudentContext = createContext<StudentContextType | undefined>(undefined);
 
 export const StudentProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [students, setStudents] = useState<Student[]>(() => {
-    return StorageService.get<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
+    const saved = StorageService.get<Student[]>(STORAGE_KEYS.STUDENTS, INITIAL_STUDENTS);
+    // Ensure Maheswari with CyberGenius - Inside the Breach is always synchronized
+    const hasMaheswari = saved.some((s) => s.id === 'stud-1' && s.fullName.toLowerCase().includes('maheswari'));
+    if (!hasMaheswari) {
+      const merged = [INITIAL_STUDENTS[0], ...saved.filter((s) => s.id !== 'stud-1')];
+      StorageService.set(STORAGE_KEYS.STUDENTS, merged);
+      return merged;
+    }
+    return saved;
   });
 
   const syncStudents = (updated: Student[]) => {

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { Course } from '@/types';
 import { StorageService, STORAGE_KEYS } from '@/services/storageService';
 import { CourseService } from '@/services/courseService';
-import { INITIAL_COURSES } from '@/utils/mockData';
+import { INITIAL_COURSES, INITIAL_INSTRUCTORS } from '@/utils/mockData';
 import { CourseFormData } from '@/utils/validators';
 
 interface CourseContextType {
@@ -81,7 +81,28 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               };
             }
           }
+          // Synchronize initial catalog tracks (e.g. Cybersecurity category & CyberGenius)
+          const matchingInit = INITIAL_COURSES.find((init) => init.id === c.id);
+          if (matchingInit) {
+            return {
+              ...c,
+              title: matchingInit.title,
+              category: matchingInit.category,
+              instructorId: matchingInit.instructorId,
+              instructorName: matchingInit.instructorName,
+              thumbnail: matchingInit.thumbnail,
+              duration: matchingInit.duration,
+              lessons: matchingInit.lessons,
+            };
+          }
           return c;
+        });
+
+        // Ensure all INITIAL_COURSES (such as CyberGenius) are present in the catalog
+        INITIAL_COURSES.forEach((init) => {
+          if (!merged.some((c) => c.id === init.id)) {
+            merged.unshift(init);
+          }
         });
 
         externalCourses.forEach((ext) => {
@@ -107,13 +128,26 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [loadCourses]);
 
   const addCourse = (data: CourseFormData): Course => {
+    const matchedInst = INITIAL_INSTRUCTORS.find((i) => i.id === data.instructorId);
+    const resolvedInstructorName = matchedInst ? matchedInst.name : (
+      data.instructorId === 'inst-1' ? 'Prof. Marcus Chen' :
+      data.instructorId === 'inst-2' ? 'Dr. Sarah Jenkins' :
+      data.instructorId === 'inst-3' ? 'Elena Rostova' :
+      data.instructorId === 'inst-4' ? "David O'Connor" :
+      data.instructorId === 'inst-peter' ? 'Peter Anderson' :
+      data.instructorId === 'inst-max' ? 'Max Ritz' :
+      data.instructorId === 'inst-ashley' ? 'Ashley Kruger' :
+      data.instructorId === 'inst-john' ? 'John Kenney' :
+      data.instructorId === 'inst-michael' ? 'Michael Harris' : "Faculty Member"
+    );
+
     const newCourse: Course = {
       id: `course-${Date.now()}`,
       title: data.title,
       description: data.description,
       thumbnail: data.thumbnail,
       instructorId: data.instructorId,
-      instructorName: data.instructorId === 'inst-1' ? 'Prof. Marcus Chen' : data.instructorId === 'inst-2' ? 'Dr. Sarah Jenkins' : data.instructorId === 'inst-3' ? 'Elena Rostova' : 'David O\'Connor',
+      instructorName: resolvedInstructorName,
       category: data.category,
       duration: data.duration,
       durationHours: parseInt(data.duration, 10) || 20,
@@ -126,9 +160,9 @@ export const CourseProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       lessons: [
-        { id: `les-${Date.now()}-1`, title: 'Module 1: Orientation & Core Fundamentals', durationMinutes: 45, order: 1, content: 'Introduction and fundamental concepts.' },
-        { id: `les-${Date.now()}-2`, title: 'Module 2: Applied Techniques & Practical Lab', durationMinutes: 60, order: 2, content: 'Deep dive into practical exercises.' },
-        { id: `les-${Date.now()}-3`, title: 'Module 3: Project Architecture & Capstone', durationMinutes: 75, order: 3, content: 'Comprehensive project evaluation.' },
+        { id: `les-${Date.now()}-1`, title: 'Module 1: Orientation & Core Fundamentals', durationMinutes: 45, order: 1, content: 'Introduction and fundamental concepts.', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
+        { id: `les-${Date.now()}-2`, title: 'Module 2: Applied Techniques & Practical Lab', durationMinutes: 60, order: 2, content: 'Deep dive into practical exercises.', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
+        { id: `les-${Date.now()}-3`, title: 'Module 3: Project Architecture & Capstone', durationMinutes: 75, order: 3, content: 'Comprehensive project evaluation.', videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4' },
       ],
     };
 
