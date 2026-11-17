@@ -224,30 +224,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ))}
         </nav>
 
-        {/* Admin/Instructor Pro Plan Upgrade Card */}
-        {!isCollapsed && !isStudent && (
-          <div className="mx-3 mb-3 rounded-2xl bg-gradient-to-br from-[#7047EB] via-[#5F35DB] to-[#4D24C7] text-white p-3.5 shadow-lg shadow-purple-500/20 relative overflow-hidden">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                <Rocket className="w-5 h-5 text-amber-300" />
-              </div>
-              <div>
-                <p className="text-sm font-bold leading-tight">
-                  You're on the Free plan.
-                </p>
-                <p className="text-xs text-purple-200 mt-1">
-                  Upgrade to go Pro
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => toast.info('Pro Plan: Unlimited classrooms, automated grading, priority analytics.')}
-              className="mt-3 w-full py-2 px-3 rounded-xl bg-white text-[#7047EB] hover:bg-purple-50 text-sm font-bold shadow-xs transition-colors text-center"
-            >
-              Upgrade
-            </button>
-          </div>
-        )}
 
         {/* Student Specific Sidebar Footer: Settings & Toggle, Help, User Card */}
         {isStudent && !isCollapsed && (
