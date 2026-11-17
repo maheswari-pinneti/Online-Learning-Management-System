@@ -19,6 +19,7 @@ import { InstructorProfile } from '@/pages/instructors/InstructorProfile';
 import { ProgressTracker } from '@/pages/progress/ProgressTracker';
 import { AssignmentsQuizzes } from '@/pages/assignments/AssignmentsQuizzes';
 import { ReportsAnalytics } from '@/pages/reports/ReportsAnalytics';
+import { PermissionsPage } from '@/pages/permissions/PermissionsPage';
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -78,6 +79,16 @@ export const AppRoutes: React.FC = () => {
           element={
             <ProtectedRoute allowedRoles={['admin']}>
               <ReportsAnalytics />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Module: Instructor Permissions & Governance (Admin) */}
+        <Route
+          path="permissions"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <PermissionsPage />
             </ProtectedRoute>
           }
         />

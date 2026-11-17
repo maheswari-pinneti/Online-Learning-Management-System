@@ -193,3 +193,40 @@ export interface ActivityItem {
   userId?: string;
   userName?: string;
 }
+
+// -------------------------------------------------------------
+// INSTRUCTOR PERMISSIONS & CLASS JOINING GOVERNANCE
+// -------------------------------------------------------------
+export interface InstructorPermissionSetting {
+  instructorId: string;
+  instructorName: string;
+  email: string;
+  canAddStudents: boolean;
+  requireClassJoinFirst: boolean; // Must join class before instructor can add
+  autoEnrollOnClassJoin: boolean;
+  maxStudentsAdditionLimit: number;
+  lastUpdated: string;
+}
+
+export interface ClassAttendanceRecord {
+  id: string;
+  studentId: string;
+  studentName: string;
+  studentEmail: string;
+  instructorId: string;
+  instructorName: string;
+  courseId: string;
+  courseTitle: string;
+  classSessionTitle: string;
+  joinedAt: string;
+  status: 'Joined' | 'Attending' | 'Completed';
+  addedToRoster: boolean;
+  addedAt?: string;
+}
+
+export interface GlobalInstructorPolicy {
+  allowInstructorsAddStudents: boolean;
+  enforceClassJoinPrerequisite: boolean; // Must join class before instructor can add
+  autoApproveJoinedAttendees: boolean;
+  defaultMaxAdditionLimit: number;
+}

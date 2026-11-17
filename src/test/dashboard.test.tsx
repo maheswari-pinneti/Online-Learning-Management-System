@@ -8,6 +8,7 @@ import { StudentProvider } from '@/context/StudentContext';
 import { InstructorProvider } from '@/context/InstructorContext';
 import { EnrollmentProvider } from '@/context/EnrollmentContext';
 import { LearningProvider } from '@/context/LearningContext';
+import { PermissionProvider } from '@/context/PermissionContext';
 import { Dashboard } from '@/pages/dashboard/Dashboard';
 import { StorageService } from '@/services/storageService';
 
@@ -41,8 +42,10 @@ const TestApp: React.FC = () => {
             <InstructorProvider>
               <EnrollmentProvider>
                 <LearningProvider>
-                  <RoleTestController />
-                  <Dashboard />
+                  <PermissionProvider>
+                    <RoleTestController />
+                    <Dashboard />
+                  </PermissionProvider>
                 </LearningProvider>
               </EnrollmentProvider>
             </InstructorProvider>

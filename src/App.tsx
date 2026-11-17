@@ -7,6 +7,7 @@ import { StudentProvider } from '@/context/StudentContext';
 import { InstructorProvider } from '@/context/InstructorContext';
 import { EnrollmentProvider } from '@/context/EnrollmentContext';
 import { LearningProvider } from '@/context/LearningContext';
+import { PermissionProvider } from '@/context/PermissionContext';
 import { AppRoutes } from '@/routes/AppRoutes';
 
 export const App: React.FC = () => {
@@ -18,9 +19,11 @@ export const App: React.FC = () => {
             <InstructorProvider>
               <EnrollmentProvider>
                 <LearningProvider>
-                  <BrowserRouter>
-                    <AppRoutes />
-                  </BrowserRouter>
+                  <PermissionProvider>
+                    <BrowserRouter>
+                      <AppRoutes />
+                    </BrowserRouter>
+                  </PermissionProvider>
                 </LearningProvider>
               </EnrollmentProvider>
             </InstructorProvider>

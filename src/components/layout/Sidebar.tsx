@@ -20,6 +20,7 @@ import {
   Settings,
   HelpCircle,
   LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useAuth } from '@/context/AuthContext';
@@ -81,6 +82,12 @@ const navItems: NavItem[] = [
     name: 'Reports & Analytics',
     path: '/reports',
     icon: <BarChart3 className="w-5 h-5 flex-shrink-0" />,
+    roles: ['admin'],
+  },
+  {
+    name: 'Permissions',
+    path: '/permissions',
+    icon: <ShieldCheck className="w-5 h-5 flex-shrink-0" />,
     roles: ['admin'],
   },
 ];

@@ -44,6 +44,7 @@ import { useStudents } from '@/context/StudentContext';
 import { useInstructors } from '@/context/InstructorContext';
 import { useEnrollment } from '@/context/EnrollmentContext';
 import { useLearning } from '@/context/LearningContext';
+import { usePermissions } from '@/context/PermissionContext';
 import { CourseModal } from '@/pages/courses/CourseModal';
 import { CourseFormData } from '@/utils/validators';
 import { Card } from '@/components/common/Card';
@@ -52,7 +53,7 @@ import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
 import { INITIAL_UPCOMING_CLASSES, INITIAL_ACTIVITIES } from '@/utils/mockData';
 import { formatDate, formatCurrency } from '@/utils/formatters';
-import { UpcomingClass, ActivityItem, AssignmentSubmission } from '@/types';
+import { UpcomingClass, ActivityItem, AssignmentSubmission, ClassAttendanceRecord } from '@/types';
 
 const CHART_COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#14b8a6'];
 
@@ -70,8 +71,14 @@ export const InstructorDashboard: React.FC = () => {
   const { courses, addCourse } = useCourses();
   const { students } = useStudents();
   const { instructors } = useInstructors();
-  const { enrollments } = useEnrollment();
+  const { enrollments, enrollStudent } = useEnrollment();
   const { assignmentSubmissions, quizSubmissions, assignments, gradeAssignment } = useLearning();
+  const {
+    canInstructorAddStudent,
+    classAttendanceRecords,
+    markStudentAddedToRoster,
+    recordStudentJoinedClass,
+  } = usePermissions();
 
   // Profile modal state
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -148,6 +155,66 @@ export const InstructorDashboard: React.FC = () => {
   const [isCopied, setIsCopied] = useState(false);
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
+
+  // Attendees who joined this live session (Class Joining Verification)
+  const liveClassAttendees = useMemo(() => {
+    if (!selectedLiveClass) return [];
+    return classAttendanceRecords.filter(
+      (r) =>
+        r.courseTitle.toLowerCase().includes(selectedLiveClass.courseName.toLowerCase()) ||
+        r.classSessionTitle.toLowerCase().includes(selectedLiveClass.title.toLowerCase()) ||
+        r.instructorName.toLowerCase().includes(selectedLiveClass.instructorName.toLowerCase())
+    );
+  }, [selectedLiveClass, classAttendanceRecords]);
+
+  // Handle adding student to roster after joining class
+  const handleAddAttendeeToRoster = (att: ClassAttendanceRecord) => {
+    const instructorId = user?.id || 'inst-4';
+    const check = canInstructorAddStudent(instructorId, att.studentId, att.courseId);
+
+    if (!check.allowed) {
+      toast.error(check.reason || 'Instructor not authorized to add students.');
+      return;
+    }
+
+    try {
+      enrollStudent(att.studentId, att.courseId);
+      markStudentAddedToRoster(att.id);
+      toast.success(`Enrolled ${att.studentName} into ${att.courseTitle} after class attendance!`);
+    } catch (err: any) {
+      markStudentAddedToRoster(att.id);
+      toast.info(err?.message || 'Student is already enrolled.');
+    }
+  };
+
+  // Simulate admitting a new student to this live class session
+  const handleAdmitWaitingStudent = () => {
+    if (!selectedLiveClass) return;
+    const waitingStudent =
+      students.find(
+        (s) => !liveClassAttendees.some((att) => att.studentId === s.id)
+      ) || students[0];
+
+    if (!waitingStudent) {
+      toast.info('All registered students have already joined this session!');
+      return;
+    }
+
+    const targetCourse =
+      courses.find((c) => c.title.toLowerCase().includes(selectedLiveClass.courseName.toLowerCase())) ||
+      courses[0];
+
+    recordStudentJoinedClass({
+      studentId: waitingStudent.id,
+      studentName: waitingStudent.fullName,
+      studentEmail: waitingStudent.email,
+      instructorId: user?.id || 'inst-4',
+      instructorName: selectedLiveClass.instructorName,
+      courseId: targetCourse?.id || 'course-cyber-1',
+      courseTitle: selectedLiveClass.courseName,
+      classSessionTitle: selectedLiveClass.title,
+    });
+  };
 
   // Analytics Tab State
   const [activeChartTab, setActiveChartTab] = useState<'trends' | 'categories'>('trends');
@@ -1367,6 +1434,75 @@ export const InstructorDashboard: React.FC = () => {
                   </Button>
                 </div>
               </div>
+            </div>
+
+            {/* Joined Students & Instructor Addition Panel (After Joining Classes) */}
+            <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-xs">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">
+                    Students in Live Class Session ({liveClassAttendees.length})
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-950/50 px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-800">
+                    Admin Policy: Add After Joining
+                  </span>
+                  <button
+                    onClick={handleAdmitWaitingStudent}
+                    className="text-[11px] font-bold text-[#7047EB] dark:text-purple-400 hover:underline"
+                  >
+                    + Admit Student from Lobby
+                  </button>
+                </div>
+              </div>
+
+              {liveClassAttendees.length === 0 ? (
+                <div className="p-3 text-center rounded-xl bg-slate-50 dark:bg-slate-800/50 text-xs text-slate-400">
+                  No students currently logged in this room yet. Click "Admit Student from Lobby" above to simulate a student joining!
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {liveClassAttendees.map((att) => (
+                    <div
+                      key={att.id}
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-xs border border-slate-100 dark:border-slate-800"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-[#7047EB] text-white flex items-center justify-center font-bold text-xs shrink-0">
+                          {att.studentName.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 dark:text-white leading-tight">
+                            {att.studentName}
+                          </p>
+                          <p className="text-[10px] text-slate-400">{att.studentEmail}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                          Joined Class
+                        </span>
+                        {att.addedToRoster ? (
+                          <span className="text-[11px] font-semibold text-slate-400 px-2 py-0.5">
+                            ✓ On Course Roster
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => handleAddAttendeeToRoster(att)}
+                            className="px-3 py-1 rounded-lg bg-[#7047EB] hover:bg-[#5E36D9] text-white text-[11px] font-bold shadow-xs transition-transform active:scale-95"
+                          >
+                            + Add to Roster
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </Modal>
