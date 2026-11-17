@@ -157,22 +157,16 @@ describe('Instructor Permissions & Class-Joining Governance', () => {
     expect(screen.getByTestId('test-decision')).toHaveTextContent('ALLOWED');
   });
 
-  it('displays the Permissions tab directly inside the Admin Dashboard', async () => {
+  it('displays the Permissions link directly inside the Admin Dashboard for instant access', async () => {
     render(
       <TestPermissionsApp>
         <Dashboard />
       </TestPermissionsApp>
     );
 
-    // Admin Dashboard should have the Permissions tab button
-    const permissionsTabBtn = screen.getByRole('button', { name: /Permissions/i });
-    expect(permissionsTabBtn).toBeInTheDocument();
-
-    fireEvent.click(permissionsTabBtn);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Permissions: Adding Students After Joining Classes/i)).toBeInTheDocument();
-      expect(screen.getByText(/Full Permissions Page/i)).toBeInTheDocument();
-    });
+    // Admin Dashboard should have the Permissions link
+    const permissionsLinks = screen.getAllByRole('link', { name: /Permissions/i });
+    expect(permissionsLinks.length).toBeGreaterThan(0);
+    expect(permissionsLinks[0]).toHaveAttribute('href', '/permissions');
   });
 });
